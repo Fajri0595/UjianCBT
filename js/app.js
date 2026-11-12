@@ -269,6 +269,11 @@
     
       const btn = e.target.querySelector('button[type="submit"]');
       btn.disabled = true; btn.innerHTML = 'Memverifikasi...';
+
+      const saved = localStorage.getItem('cbt_participant');
+      let existingToken = '';
+      try { existingToken = saved ? JSON.parse(saved).token || '' : ''; } catch (err) {}
+      const deviceInfo = `${navigator.platform || 'Device'} — ${navigator.userAgent.substring(0, 80)}`;
     
       gasRun
         .withSuccessHandler(res => {
@@ -286,7 +291,7 @@
           }
         })
         .withFailureHandler(err => { btn.disabled = false; btn.innerHTML = 'Continue / Mulai Sesi'; showToast('Error', err.message, 'danger'); })
-        .verifyParticipantAccess(nama, kontak, kode);
+        .verifyParticipantAccess(nama, kontak, kode, deviceInfo, existingToken);
     }
     
     function logoutParticipant() {
@@ -672,9 +677,9 @@
           }
     
           if (appState.timerSecondsLeft <= 0) {
-            showToast('Waktu Habis', 'Waktu ujian sudah habis, silakan tinjau & kirim jawaban Anda.', 'warning');
-            goToReview();
+            showToast('Waktu Habis', 'Waktu ujian telah berakhir. Mengirim jawaban otomatis...', 'warning');
             enableExamProtection();
+            doSubmitExam();
             return;
           }
     
@@ -684,7 +689,7 @@
           navigateTo('examSession');
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-        .startExamSession(appState.participant.ID_Peserta, idUjian);
+        .startExamSession(appState.participant.ID_Peserta, idUjian, (appState.participant && appState.participant.token) || '');
     }
     
     function startTimer() {
@@ -693,8 +698,8 @@
         appState.timerSecondsLeft--;
         if (appState.timerSecondsLeft <= 0) {
           clearInterval(appState.timerInterval);
-          showToast('Waktu Habis', 'Ujian akan dikirim otomatis.', 'warning');
-          goToReview();
+          showToast('Waktu Habis', 'Waktu ujian telah berakhir. Sistem melakukan submit jawaban otomatis...', 'warning');
+          doSubmitExam();
           return;
         }
         renderTimer();
@@ -1237,7 +1242,22 @@
         .withSuccessHandler(res => {
           window._isSubmittingExam = false;
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
+          if (!res.success) {
+            if (res.data && res.data.disqualified) {
+              clearActiveExamStorage(appState.currentExam.ID_Ujian);
+              disableExamProtection();
+              showToast('Ujian Didiskualifikasi', res.message, 'danger');
+              document.getElementById('finalScoreDisplay').innerHTML = `<span style="font-size:24px;color:var(--danger);"><i class="bi bi-x-octagon-fill"></i> 0</span>`;
+              document.getElementById('passStatusBadge').innerHTML = `<span class="badge-pill badge-danger"><span class="dot"></span> DIDISKUALIFIKASI (WAKTU HABIS)</span>`;
+              document.getElementById('scoreListeningBox').textContent = '0';
+              document.getElementById('scoreGrammarBox').textContent = '0';
+              document.getElementById('scoreReadingBox').textContent = '0';
+              navigateTo('scoreResult');
+              return;
+            }
+            showToast('Gagal', res.message, 'danger');
+            return;
+          }
           clearActiveExamStorage(appState.currentExam.ID_Ujian);
           disableExamProtection();
           const d = res.data;
@@ -2302,15 +2322,21 @@
         const isUsed = p.Status_Kode === 'Used';
         const isExpired = p.Status_Kode === 'Expired';
         const isActive = p.Status_Kode === 'Aktif';
+        const isLocked = Boolean(p.Active_Token);
 
         const rowStyle = isUsed ? 'opacity:0.88;background:rgba(15,118,110,0.02);' : isExpired ? 'opacity:0.65;' : '';
         const examName = getExamNameById(p.ID_Ujian_Target);
+
+        const resetSessionBtn = isLocked
+          ? `<button class="btn-icon-sm" style="color:#d97706;" title="Reset Kunci Perangkat (Unlock)" onclick="resetDeviceSession('${p.ID_Peserta}', '${escapeHtml(p.Nama || 'Peserta')}')"><i class="bi bi-unlock"></i></button>`
+          : '';
 
         // Aksi Kontekstual Sesuai Status
         let actionButtons = '';
         if (isActive) {
           actionButtons = `
             <div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;">
+              ${resetSessionBtn}
               <button class="btn-icon-sm" style="color:#25D366;" title="Kirim Akses via WhatsApp" onclick="sendWhatsAppCode('${p.ID_Peserta}')"><i class="bi bi-whatsapp"></i></button>
               <button class="btn-icon-sm" title="Cetak Slip Kartu (Thermal/A4)" onclick="printSingleThermalSlip('${p.ID_Peserta}')"><i class="bi bi-printer"></i></button>
               <button class="btn-icon-sm" title="Salin Kode Akses" onclick="copyAccessCode('${p.Kode_Akses}')"><i class="bi bi-clipboard"></i></button>
@@ -2319,6 +2345,7 @@
         } else if (isUsed) {
           actionButtons = `
             <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+              ${resetSessionBtn}
               <button class="btn-icon-sm" title="Cetak Bukti Nilai Thermal" onclick="printScoreReceiptThermal('${p.ID_Peserta}')"><i class="bi bi-receipt"></i></button>
               <button class="btn-cbt btn-cbt-outline" style="padding:4px 10px;font-size:11.5px;" onclick="viewParticipantScoreDetail('${p.ID_Peserta}', '${escapeHtml(p.Nama || 'Peserta')}')">
                 <i class="bi bi-bar-chart-line"></i> Lihat Nilai
@@ -2328,6 +2355,7 @@
           // Expired / Nonaktif
           actionButtons = `
             <div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;">
+              ${resetSessionBtn}
               <button class="btn-icon-sm" title="Aktifkan Kembali" onclick="reactivateCode('${p.ID_Peserta}')"><i class="bi bi-arrow-counterclockwise"></i></button>
               <button class="btn-icon-sm" style="color:var(--danger);" title="Hapus Data Peserta" onclick="deleteParticipant('${p.ID_Peserta}', '${escapeHtml(p.Nama || p.Kode_Akses)}')"><i class="bi bi-trash"></i></button>
             </div>`;
@@ -2348,7 +2376,7 @@
               </div>
             </td>
             <td><span style="font-size:12.5px;font-weight:500;">${escapeHtml(examName)}</span></td>
-            <td>${accessStatusBadge(p.Status_Kode)}</td>
+            <td>${accessStatusBadge(p.Status_Kode, isLocked, p.Device_Info)}</td>
             <td style="text-align:right;">${actionButtons}</td>
           </tr>
         `;
@@ -2370,9 +2398,32 @@
       });
     }
 
-    function accessStatusBadge(status) {
+    function accessStatusBadge(status, isLocked, deviceInfo) {
       const map = { Aktif: 'badge-success', Used: 'badge-indigo', Expired: 'badge-neutral' };
-      return `<span class="badge-pill ${map[status] || 'badge-neutral'}"><span class="dot"></span>${status}</span>`;
+      let html = `<span class="badge-pill ${map[status] || 'badge-neutral'}"><span class="dot"></span>${status}</span>`;
+      if (isLocked) {
+        html += ` <span class="badge-pill badge-warning" style="margin-left:4px;" title="${escapeHtml(deviceInfo || 'Perangkat Terkunci')}"><i class="bi bi-laptop"></i> Terkunci</span>`;
+      }
+      return html;
+    }
+
+    function resetDeviceSession(idPeserta, nama) {
+      if (!confirm(`Reset kunci sesi perangkat untuk "${nama || idPeserta}"?\n\nTindakan ini akan membebaskan kunci sesi sehingga peserta dapat login kembali di komputer lain jika perangkat sebelumnya mengalami kendala teknis atau mati.`)) {
+        return;
+      }
+      showToast('Memproses...', 'Membuka kunci sesi perangkat...', 'info');
+      gasRun
+        .withSuccessHandler(res => {
+          if (!res) return;
+          if (res.success) {
+            showToast('Kunci Dilepas', res.message, 'success');
+            loadParticipants();
+          } else {
+            showToast('Gagal', res.message, 'danger');
+          }
+        })
+        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+        .resetParticipantSession(idPeserta);
     }
     function openGenerateCodesModal() { openModal('modalGenerateCodes'); }
     function submitGenerateCodes() {

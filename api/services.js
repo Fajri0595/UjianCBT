@@ -12,7 +12,8 @@ const {
   generateSessionToken,
   generateId,
   generateAccessCode,
-  getDeterministicOptionPermutation
+  getDeterministicOptionPermutation,
+  deterministicShuffle
 } = require('./auth');
 
 const APP_BUILD_VERSION = 'v5.0-vercel-pro';
@@ -87,7 +88,7 @@ async function runDiagnostics() {
 // ────────────────────────────────────────────────────────────
 // 2. AUTENTIKASI
 // ────────────────────────────────────────────────────────────
-async function verifyParticipantAccess(nama, kontak, kodeAkses) {
+async function verifyParticipantAccess(nama, kontak, kodeAkses, deviceInfo, existingToken) {
   if (!kodeAkses) return createResponse(false, null, 'Kode akses wajib diisi.');
   const trimmedCode = String(kodeAkses).trim().toUpperCase();
 
@@ -105,6 +106,24 @@ async function verifyParticipantAccess(nama, kontak, kodeAkses) {
     return createResponse(false, null, 'Kode akses sudah tidak berlaku (kadaluarsa/terpakai).');
   }
 
+  // ── PROTEKSI 1: Single-Session Device Lock ──
+  // Periksa apakah peserta memiliki sesi ujian yang SEDANG BERJALAN di perangkat lain
+  const ongoingExam = await queryOne(
+    `SELECT * FROM hasil_ujian WHERE "ID_Peserta" = $1 AND "Status" = 'Sedang Berjalan' LIMIT 1`,
+    [participant.ID_Peserta]
+  );
+
+  if (ongoingExam && participant.Active_Token) {
+    const isSameToken = existingToken && participant.Active_Token === existingToken;
+    if (!isSameToken) {
+      return createResponse(
+        false,
+        null,
+        '⚠️ AKSES DITOLAK: Sesi ujian ini sedang aktif di perangkat lain. Untuk mencegah kecurangan joki/multi-login, satu kode akses hanya diizinkan di 1 perangkat. Jika perangkat Anda sebelumnya mati/crash, silakan minta Pengawas untuk melakukan "Reset Sesi Perangkat".'
+      );
+    }
+  }
+
   const existingNama = String(participant.Nama || '').trim();
   let finalNama = existingNama;
   if (!existingNama || existingNama === 'Contoh Peserta') {
@@ -115,11 +134,22 @@ async function verifyParticipantAccess(nama, kontak, kodeAkses) {
     );
   }
 
+  const sessionToken = generateSessionToken(participant.ID_Peserta, 'peserta', finalNama);
+  const userAgentInfo = deviceInfo ? String(deviceInfo).substring(0, 200) : 'Browser Client';
+
+  // Simpan token sesi aktif dan info perangkat
+  await query(
+    `UPDATE peserta SET "Active_Token" = $1, "Device_Info" = $2 WHERE "ID_Peserta" = $3`,
+    [sessionToken, userAgentInfo, participant.ID_Peserta]
+  );
+
   participant.Nama = finalNama;
   participant.Kontak = kontak || participant.Kontak;
-  participant.token = generateSessionToken(participant.ID_Peserta, 'peserta', participant.Nama);
+  participant.Active_Token = sessionToken;
+  participant.Device_Info = userAgentInfo;
+  participant.token = sessionToken;
 
-  await logActivity('Peserta', participant.Nama, 'Login/Verifikasi Kode', trimmedCode);
+  await logActivity('Peserta', participant.Nama, 'Login/Verifikasi Kode', `${trimmedCode} (${userAgentInfo})`);
   return createResponse(true, participant, 'Kode akses terverifikasi.');
 }
 
@@ -188,7 +218,7 @@ async function getAvailableExamsForParticipant(idUjianTarget) {
   return createResponse(true, exams, 'OK');
 }
 
-async function startExamSession(idPeserta, idUjian) {
+async function startExamSession(idPeserta, idUjian, clientToken) {
   const peserta = await queryOne('SELECT * FROM peserta WHERE "ID_Peserta" = $1', [idPeserta]);
   if (!peserta) return createResponse(false, null, 'Data peserta tidak valid.');
 
@@ -198,6 +228,15 @@ async function startExamSession(idPeserta, idUjian) {
   }
   if (peserta.ID_Ujian_Target && String(peserta.ID_Ujian_Target).trim() !== '' && peserta.ID_Ujian_Target !== idUjian) {
     return createResponse(false, null, 'Kode akses Anda tidak terdaftar untuk paket ujian ini.');
+  }
+
+  // ── PROTEKSI 1: Validasi Kunci Sesi Perangkat ──
+  if (peserta.Active_Token && clientToken && peserta.Active_Token !== clientToken) {
+    return createResponse(
+      false,
+      null,
+      '⚠️ AKSES DITOLAK: Sesi ujian ini terdaftar aktif pada perangkat/browser lain. Hubungi Pengawas Ujian untuk mereset sesi perangkat jika perangkat Anda mengalami kendala.'
+    );
   }
 
   const ujian = await queryOne('SELECT * FROM ujian WHERE "ID_Ujian" = $1', [idUjian]);
@@ -215,8 +254,9 @@ async function startExamSession(idPeserta, idUjian) {
 
   const soalRes = await query('SELECT * FROM soal WHERE "ID_Ujian" = $1 ORDER BY "Nomor" ASC', [idUjian]);
   const isShuffleOption = ujian.Acak_Jawaban === true || ujian.Acak_Jawaban === 'true' || ujian.Acak_Jawaban === 1;
+  const isShuffleQuestion = ujian.Acak_Soal === true || ujian.Acak_Soal === 'true' || ujian.Acak_Soal === 1 || ujian.Acak_Soal === undefined;
 
-  const soalUntukPeserta = soalRes.rows.map((s) => {
+  let soalUntukPeserta = soalRes.rows.map((s) => {
     const clone = { ...s };
     delete clone.Jawaban_Benar;
     if (isShuffleOption) {
@@ -228,6 +268,68 @@ async function startExamSession(idPeserta, idUjian) {
     }
     return clone;
   });
+
+  // ── PROTEKSI 2: Deterministic Question Shuffling with Passage & Section Cohesion ──
+  if (isShuffleQuestion && soalUntukPeserta.length > 1) {
+    const sections = {};
+    for (const q of soalUntukPeserta) {
+      const s = q.Sesi || 'Umum';
+      if (!sections[s]) sections[s] = [];
+      sections[s].push(q);
+    }
+
+    // Seksi canonical TOEFL: Listening -> Grammar/Structure -> Reading
+    const sectionCanonicalOrder = [
+      'Listening',
+      'Listening Comprehension',
+      'Grammar',
+      'Structure',
+      'Grammar-Structure',
+      'Structure & Written Expression',
+      'Reading',
+      'Reading Comprehension'
+    ];
+
+    const sortedSectionKeys = Object.keys(sections).sort((a, b) => {
+      const ia = sectionCanonicalOrder.indexOf(a);
+      const ib = sectionCanonicalOrder.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
+    const orderedAndShuffled = [];
+    for (const sKey of sortedSectionKeys) {
+      const list = sections[sKey];
+      const clusters = [];
+      let currentPassageCluster = null;
+
+      for (const q of list) {
+        const pText = (q.Passage_Teks || '').trim();
+        if (pText) {
+          if (currentPassageCluster && currentPassageCluster.key === pText) {
+            currentPassageCluster.items.push(q);
+          } else {
+            currentPassageCluster = { key: pText, items: [q] };
+            clusters.push(currentPassageCluster);
+          }
+        } else {
+          currentPassageCluster = null;
+          clusters.push({ key: q.ID_Soal, items: [q] });
+        }
+      }
+
+      // Pengacakan cluster secara deterministik per peserta dan per seksi
+      const shuffledClusters = deterministicShuffle(clusters, `${idPeserta}_${idUjian}_${sKey}`);
+      shuffledClusters.forEach((c) => {
+        c.items.forEach((item) => orderedAndShuffled.push(item));
+      });
+    }
+
+    // Re-assign nomor urut 1..N agar bersih bagi peserta di layar
+    soalUntukPeserta = orderedAndShuffled.map((item, idx) => ({
+      ...item,
+      Nomor: idx + 1
+    }));
+  }
 
   const existingInProgress = await queryOne(
     `SELECT * FROM hasil_ujian WHERE "ID_Peserta" = $1 AND "ID_Ujian" = $2 AND "Status" = 'Sedang Berjalan'`,
@@ -271,10 +373,54 @@ async function submitExamAnswers(idPeserta, namaPeserta, idUjian, jawabanObj, wa
 
   const waktuMulaiOtentik = inProgress?.Waktu_Mulai ? inProgress.Waktu_Mulai : (waktuMulaiISO || new Date());
   const now = new Date();
-  const durasiMs = (Number(ujian.Durasi_Menit) || 60) * 60 * 1000;
-  const bufferMs = 3 * 60 * 1000;
+  const durasiMenit = Number(ujian.Durasi_Menit) || 60;
+  const durasiMs = durasiMenit * 60 * 1000;
+  const bufferMs = 3 * 60 * 1000; // Toleransi latensi jaringan 3 menit
   const elapsedMs = now.getTime() - new Date(waktuMulaiOtentik).getTime();
-  const melebihiWaktu = elapsedMs > durasiMs + bufferMs;
+  const melebihiBatasToleransi = elapsedMs > durasiMs + bufferMs;
+
+  // ── PROTEKSI 3: Strict Server-Side Hard Cutoff ──
+  if (melebihiBatasToleransi) {
+    const elapsedMenit = Math.round(elapsedMs / 60000);
+    // Catat diskualifikasi ke database hasil_ujian
+    if (inProgress) {
+      await query(
+        `UPDATE hasil_ujian
+         SET "Nama_Peserta" = $1, "Jawaban_JSON" = $2, "Skor_Listening" = 0, "Skor_Grammar" = 0, "Skor_Reading" = 0,
+             "Skor_Total" = 0, "Status_Lulus" = 'Didiskualifikasi (Waktu Kedaluwarsa)', "Waktu_Selesai" = NOW(), "Status" = 'Selesai'
+         WHERE "ID_Hasil" = $3`,
+        [namaPeserta, JSON.stringify(jawabanObj || {}), inProgress.ID_Hasil]
+      );
+    } else {
+      const idHasilDis = generateId('HSL');
+      await query(
+        `INSERT INTO hasil_ujian ("ID_Hasil", "ID_Peserta", "Nama_Peserta", "ID_Ujian", "Jawaban_JSON", "Skor_Listening", "Skor_Grammar", "Skor_Reading", "Skor_Total", "Status_Lulus", "Waktu_Mulai", "Waktu_Selesai", "Status")
+         VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, 'Didiskualifikasi (Waktu Kedaluwarsa)', $6, NOW(), 'Selesai')`,
+        [idHasilDis, idPeserta, namaPeserta, idUjian, JSON.stringify(jawabanObj || {}), waktuMulaiOtentik]
+      );
+    }
+
+    // Kunci kode akses & bersihkan token perangkat aktif
+    await query(`UPDATE peserta SET "Status_Kode" = 'Used', "Active_Token" = NULL WHERE "ID_Peserta" = $1`, [idPeserta]);
+
+    await logActivity(
+      'Sistem',
+      namaPeserta,
+      'Didiskualifikasi (Waktu Kedaluwarsa)',
+      `Ujian: ${idUjian} — Pengerjaan melampaui batas: ${elapsedMenit} menit dari alokasi ${durasiMenit} menit`
+    );
+
+    return createResponse(
+      false,
+      {
+        disqualified: true,
+        durasiMenit,
+        elapsedMenit,
+        statusLulus: 'Didiskualifikasi (Waktu Kedaluwarsa)'
+      },
+      `⚠️ Batas waktu pengerjaan telah berakhir dan melampaui toleransi server (${elapsedMenit} menit dari alokasi ${durasiMenit} menit). Ujian otomatis didiskualifikasi.`
+    );
+  }
 
   const soalRes = await query('SELECT * FROM soal WHERE "ID_Ujian" = $1', [idUjian]);
   const isShuffleOption = ujian.Acak_Jawaban === true || ujian.Acak_Jawaban === 'true' || ujian.Acak_Jawaban === 1;
@@ -342,15 +488,15 @@ async function submitExamAnswers(idPeserta, namaPeserta, idUjian, jawabanObj, wa
     );
   }
 
-  // Tandai kode akses terpakai
-  await query(`UPDATE peserta SET "Status_Kode" = 'Used' WHERE "ID_Peserta" = $1`, [idPeserta]);
+  // Tandai kode akses terpakai & bebaskan kunci perangkat
+  await query(`UPDATE peserta SET "Status_Kode" = 'Used', "Active_Token" = NULL WHERE "ID_Peserta" = $1`, [idPeserta]);
 
   await logActivity(
     'Peserta',
     namaPeserta,
     'Submit Final',
     `${idUjian} — Skor Total: ${skorTotal} (L:${scaledListening}, G:${scaledGrammar}, R:${scaledReading})${
-      melebihiWaktu ? ' — ⚠️ WAKTU MELEBIHI DURASI' : ''
+      elapsedMs > durasiMs ? ' — (Diterima dalam grace period toleransi)' : ''
     }`
   );
 
@@ -412,8 +558,8 @@ async function createExam(examObj) {
   examObj.Status = examObj.Status || 'Draft';
 
   await query(
-    `INSERT INTO ujian ("ID_Ujian", "Kode_Ujian", "Nama_Ujian", "Deskripsi", "ID_Dosen_Pembuat", "Durasi_Menit", "Passing_Score", "Tanggal_Buka", "Tanggal_Tutup", "Status", "Acak_Jawaban", "Kunci_Setelah_Submit")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    `INSERT INTO ujian ("ID_Ujian", "Kode_Ujian", "Nama_Ujian", "Deskripsi", "ID_Dosen_Pembuat", "Durasi_Menit", "Passing_Score", "Tanggal_Buka", "Tanggal_Tutup", "Status", "Acak_Jawaban", "Kunci_Setelah_Submit", "Acak_Soal")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       examObj.ID_Ujian,
       examObj.Kode_Ujian,
@@ -426,7 +572,8 @@ async function createExam(examObj) {
       examObj.Tanggal_Tutup || null,
       examObj.Status,
       Boolean(examObj.Acak_Jawaban),
-      examObj.Kunci_Setelah_Submit !== undefined ? Boolean(examObj.Kunci_Setelah_Submit) : true
+      examObj.Kunci_Setelah_Submit !== undefined ? Boolean(examObj.Kunci_Setelah_Submit) : true,
+      examObj.Acak_Soal !== undefined ? Boolean(examObj.Acak_Soal) : true
     ]
   );
 
@@ -447,8 +594,9 @@ async function updateExam(examObj) {
          "Tanggal_Tutup" = COALESCE($6, "Tanggal_Tutup"),
          "Status" = COALESCE($7, "Status"),
          "Acak_Jawaban" = COALESCE($8, "Acak_Jawaban"),
-         "Kunci_Setelah_Submit" = COALESCE($9, "Kunci_Setelah_Submit")
-     WHERE "ID_Ujian" = $10`,
+         "Kunci_Setelah_Submit" = COALESCE($9, "Kunci_Setelah_Submit"),
+         "Acak_Soal" = COALESCE($10, "Acak_Soal")
+     WHERE "ID_Ujian" = $11`,
     [
       examObj.Nama_Ujian,
       examObj.Deskripsi,
@@ -459,6 +607,7 @@ async function updateExam(examObj) {
       examObj.Status,
       examObj.Acak_Jawaban !== undefined ? Boolean(examObj.Acak_Jawaban) : null,
       examObj.Kunci_Setelah_Submit !== undefined ? Boolean(examObj.Kunci_Setelah_Submit) : null,
+      examObj.Acak_Soal !== undefined ? Boolean(examObj.Acak_Soal) : null,
       examObj.ID_Ujian
     ]
   );
@@ -1019,6 +1168,20 @@ async function deleteParticipantAccess(idPeserta) {
   return createResponse(true, null, 'Data peserta berhasil dihapus.');
 }
 
+async function resetParticipantSession(idPeserta) {
+  if (!idPeserta) return createResponse(false, null, 'ID Peserta wajib disertakan.');
+  const p = await queryOne('SELECT * FROM peserta WHERE "ID_Peserta" = $1', [idPeserta]);
+  if (!p) return createResponse(false, null, 'Data peserta tidak ditemukan.');
+
+  await query('UPDATE peserta SET "Active_Token" = NULL, "Device_Info" = NULL WHERE "ID_Peserta" = $1', [idPeserta]);
+  await logActivity('Pengawas', 'Proctor/Admin', 'Reset Sesi Perangkat', `ID Peserta: ${idPeserta} (${p.Nama || 'Tanpa Nama'})`);
+  return createResponse(
+    true,
+    { idPeserta, nama: p.Nama },
+    `Kunci sesi perangkat untuk peserta "${p.Nama || idPeserta}" berhasil dilepas. Peserta sekarang dapat login kembali di perangkat yang baru.`
+  );
+}
+
 async function getParticipantResultDetail(idPeserta) {
   const res = await query(
     `SELECT "ID_Hasil", "ID_Peserta", "Nama_Peserta", "ID_Ujian", "Skor_Listening", "Skor_Grammar", "Skor_Reading", "Skor_Total", "Status_Lulus", "Waktu_Mulai", "Waktu_Selesai", "Status"
@@ -1349,6 +1512,7 @@ module.exports = {
   deactivateAccessCode,
   reactivateAccessCode,
   deleteParticipantAccess,
+  resetParticipantSession,
   getParticipantResultDetail,
   importParticipantsBatch,
   getAllExamsAdmin,

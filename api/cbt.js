@@ -53,6 +53,7 @@ const ACTION_PERMISSIONS = {
   deactivateAccessCode: 'ADMIN',
   reactivateAccessCode: 'ADMIN',
   deleteParticipantAccess: 'ADMIN',
+  resetParticipantSession: 'DOSEN',
   importParticipantsBatch: 'ADMIN',
 
   // Admin — Ujian, Laporan & Pengaturan

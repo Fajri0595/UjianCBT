@@ -109,6 +109,31 @@ function getDeterministicOptionPermutation(seedStr) {
   return letters;
 }
 
+/**
+ * Pengacakan array deterministik berbasis LCG untuk mengacak urutan soal per peserta
+ */
+function deterministicShuffle(array, seedStr) {
+  if (!Array.isArray(array) || array.length <= 1) return [...(array || [])];
+  let seed = 0;
+  const str = String(seedStr || 'cbt_seed');
+  for (let i = 0; i < str.length; i++) {
+    seed = (seed << 5) - seed + str.charCodeAt(i);
+    seed |= 0;
+  }
+  seed = Math.abs(seed) || 12345;
+
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    seed = (seed * 9301 + 49297) % 233280;
+    const rnd = Math.abs(seed) / 233280;
+    const j = Math.floor(rnd * (i + 1));
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+  return result;
+}
+
 module.exports = {
   getApiSecret,
   getSaltKey,
@@ -118,6 +143,7 @@ module.exports = {
   verifySessionToken,
   generateId,
   generateAccessCode,
-  getDeterministicOptionPermutation
+  getDeterministicOptionPermutation,
+  deterministicShuffle
 };
 

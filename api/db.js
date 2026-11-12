@@ -208,6 +208,11 @@ async function ensureSchema() {
       CREATE INDEX IF NOT EXISTS idx_soal_ujian ON soal ("ID_Ujian");
       CREATE INDEX IF NOT EXISTS idx_hasil_peserta_ujian ON hasil_ujian ("ID_Peserta", "ID_Ujian");
       CREATE INDEX IF NOT EXISTS idx_bank_soal_sesi ON bank_soal ("Sesi", "Topik");
+
+      -- Kolom Proteksi Sesi Tunggal & Anti-Curang
+      ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Active_Token" TEXT;
+      ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Device_Info" TEXT;
+      ALTER TABLE ujian ADD COLUMN IF NOT EXISTS "Acak_Soal" BOOLEAN DEFAULT TRUE;
     `);
 
     // 2. Injeksi Akun Admin Awal jika kosong

@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS peserta (
   "ID_Ujian_Target" VARCHAR(60) DEFAULT '',
   "Status_Kode" VARCHAR(30) DEFAULT 'Aktif',
   "Tanggal_Daftar" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  "Rombel" VARCHAR(100) DEFAULT 'Umum'
+  "Rombel" VARCHAR(100) DEFAULT 'Umum',
+  "Active_Token" TEXT,
+  "Device_Info" TEXT
 );
 
 -- 2. Tabel Dosen Penguji
@@ -44,6 +46,7 @@ CREATE TABLE IF NOT EXISTS ujian (
   "Tanggal_Tutup" TIMESTAMPTZ,
   "Status" VARCHAR(30) DEFAULT 'Draft',
   "Acak_Jawaban" BOOLEAN DEFAULT FALSE,
+  "Acak_Soal" BOOLEAN DEFAULT TRUE,
   "Kunci_Setelah_Submit" BOOLEAN DEFAULT TRUE
 );
 
