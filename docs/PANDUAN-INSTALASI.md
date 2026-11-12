@@ -131,3 +131,4 @@ Jika Anda ingin menguji atau mengembangkan aplikasi di laptop/komputer:
    npm start
    ```
 3. Buka browser di `http://localhost:3000`. Aplikasi dan API lokal langsung siap digunakan!
+
