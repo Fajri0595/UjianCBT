@@ -126,4 +126,3 @@ CREATE INDEX IF NOT EXISTS idx_soal_ujian ON soal ("ID_Ujian");
 CREATE INDEX IF NOT EXISTS idx_hasil_peserta_ujian ON hasil_ujian ("ID_Peserta", "ID_Ujian");
 CREATE INDEX IF NOT EXISTS idx_bank_soal_sesi ON bank_soal ("Sesi", "Topik");
 CREATE INDEX IF NOT EXISTS idx_log_timestamp ON log_aktivitas ("Timestamp" DESC);
-

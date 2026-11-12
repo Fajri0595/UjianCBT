@@ -13,18 +13,13 @@ Aplikasi **CBT Bahasa (Computer-Based Test Kebahasaan)** ini telah ditingkatkan 
 
 1. Pastikan seluruh file di folder ini sudah rapi. Struktur folder proyek Anda adalah:
    ```text
-   ├── index.html            (Frontend Utama)
+   ├── index.html            (Frontend Utama SPA)
    ├── favicon.svg           (Icon CBT)
    ├── css/                  (Style & Antarmuka)
-   ├── js/
-   │   ├── api.js            (Client REST Adapter & Auto-Retry)
-   │   └── app.js            (Seluruh logika UI & Ujian)
-   ├── api/
-   │   ├── cbt.js            (Router Serverless Vercel)
-   │   ├── db.js             (Koneksi & Auto-Init PostgreSQL)
-   │   ├── auth.js           (HMAC Token & Password Hashing)
-   │   ├── services.js       (42 Logika Bisnis CBT)
-   │   └── schema.sql        (DDL Skema Database)
+   ├── js/                   (Client REST Adapter & Controller)
+   ├── database/             (Skema DDL PostgreSQL)
+   ├── docs/                 (Panduan & Dokumentasi)
+   ├── api/                  (Router Serverless & Domain Services)
    ├── package.json          (Dependensi Node.js)
    ├── vercel.json           (Konfigurasi Routing Vercel)
    └── .env.example          (Panduan Environment Variable)
@@ -34,7 +29,7 @@ Aplikasi **CBT Bahasa (Computer-Based Test Kebahasaan)** ini telah ditingkatkan 
 3. Push folder proyek ini ke repositori GitHub:
    ```bash
    git add .
-   git commit -m "feat: migrate to Vercel Serverless and PostgreSQL"
+   git commit -m "feat: organize project structure and modular services"
    git branch -M main
    git remote add origin https://github.com/Fajri0595/UjianCBT.git
    git push -u origin main

@@ -41,17 +41,25 @@ Aplikasi ini menggunakan arsitektur web modern **Serverless REST API + Database 
 ├── js/
 │   ├── api.js            # Klien REST Adapter & Auto-Retry (/api/cbt)
 │   └── app.js            # Logika UI, timer ujian, pengerjaan soal, & dashboard
+├── database/
+│   └── schema.sql        # Skema DDL tabel database & indeks PostgreSQL
+├── docs/
+│   └── PANDUAN-INSTALASI.md # Panduan langkah demi langkah deploy ke Vercel & Neon
 ├── api/
-│   ├── cbt.js            # Router serverless Vercel & penangan CORS
+│   ├── cbt.js            # Router serverless Vercel & penangan CORS (/api/cbt)
 │   ├── db.js             # Pool koneksi PostgreSQL & Auto-Initialization skema
-│   ├── auth.js           # Kriptografi, HMAC session token, & hashing password
-│   ├── services.js       # 42 Layanan bisnis CBT (Ujian, Soal, Bank Soal, dsb.)
-│   └── schema.sql        # Skema DDL tabel database PostgreSQL
+│   ├── auth.js           # Kriptografi, HMAC session token, & shuffling algorithm
+│   ├── services.js       # Facade Aggregator Layanan Bisnis CBT
+│   └── services/         # Modul Layanan Bisnis Terorganisir:
+│       ├── common.js        # Utilitas respon, kalkulasi TOEFL, audit log
+│       ├── examService.js   # Manajemen ujian, pengerjaan peserta, analisis butir
+│       ├── bankService.js   # Manajemen bank soal, topik, upload audio
+│       ├── userService.js   # Autentikasi, dosen, peserta, kode akses, device lock
+│       └── reportService.js # Laporan global, rombel, kuota database, diagnostik
 ├── package.json          # Konfigurasi dependensi Node.js & script
 ├── vercel.json           # Konfigurasi routing rewrite Vercel
 ├── local-server.js       # Web server lokal untuk pengujian di komputer
 ├── .env.example          # Panduan variabel lingkungan
-├── PANDUAN-INSTALASI.md  # Panduan lengkap langkah demi langkah deploy ke Vercel
 └── README.md             # Dokumentasi arsitektur proyek
 ```
 
@@ -59,7 +67,7 @@ Aplikasi ini menggunakan arsitektur web modern **Serverless REST API + Database 
 
 ## 🚀 Panduan Memulai & Deployment
 
-Untuk panduan lengkap langkah demi langkah menghubungkan ke GitHub, Vercel, dan mengaktifkan database PostgreSQL gratis, silakan baca [PANDUAN-INSTALASI.md](file:///d:/WEB%20APP/3%20-%20CBT%20KEBAHASAAN/KODE%20NEW/PANDUAN-INSTALASI.md).
+Untuk panduan lengkap langkah demi langkah menghubungkan ke GitHub, Vercel, dan mengaktifkan database PostgreSQL gratis, silakan baca [PANDUAN-INSTALASI.md](docs/PANDUAN-INSTALASI.md).
 
 ### Akun Awal Bawaan (Default):
 - **Super Admin**: `admin.pusatbahasa` / `admin123`
