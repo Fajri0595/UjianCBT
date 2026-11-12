@@ -39,8 +39,7 @@ Aplikasi ini menggunakan arsitektur web modern **Serverless REST API + Database 
 ├── css/
 │   └── style.css         # Styling kustom antarmuka pengguna
 ├── js/
-│   ├── config.js         # Endpoint URL backend API (/api/cbt)
-│   ├── api.js            # Klien REST berbasis Proxy (kompatibel penuh dengan UI)
+│   ├── api.js            # Klien REST Adapter & Auto-Retry (/api/cbt)
 │   └── app.js            # Logika UI, timer ujian, pengerjaan soal, & dashboard
 ├── api/
 │   ├── cbt.js            # Router serverless Vercel & penangan CORS

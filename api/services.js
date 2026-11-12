@@ -1,7 +1,7 @@
 /**
  * ============================================================
  * CBT BAHASA — Layanan Bisnis & Aksi REST API (Node.js & PostgreSQL)
- * Menggantikan seluruh fungsi backend Kode.gs dari Google Apps Script
+ * Layanan bisnis CBT modern berbasis Vercel Serverless & PostgreSQL
  * ============================================================
  */
 

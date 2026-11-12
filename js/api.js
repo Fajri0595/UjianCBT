@@ -7,14 +7,14 @@
 // penanganan sesi otomatis, serta proxy thread-safe.
 // ============================================================
 
-/**
- * Kirim satu aksi + argumen ke backend GAS, kembalikan Promise yang
- * resolve dengan objek respons ({ success, data, message }) apa adanya
- * — persis seperti nilai yang dulu diterima withSuccessHandler().
- */
+// Endpoint API utama (default relatif '/api/cbt' untuk Vercel Serverless).
+// Dapat di-override melalui window.CBT_API_URL jika frontend di-host terpisah.
+const CBT_API_URL = window.CBT_API_URL || '/api/cbt';
+const GAS_URL = CBT_API_URL; // Alias kompatibilitas
+
 /**
  * Ambil token sesi aktif dari localStorage (staf atau peserta) untuk
- * dikirimkan ke backend GAS pada setiap pemanggilan REST API.
+ * dikirimkan ke backend pada setiap pemanggilan REST API.
  */
 function getActiveAuthToken() {
   try {
@@ -33,9 +33,9 @@ function getActiveAuthToken() {
 }
 
 /**
- * Kirim satu aksi + argumen ke backend GAS dengan mekanisme Resilience Retry
+ * Kirim satu aksi + argumen ke backend REST API dengan mekanisme Resilience Retry
  * (Exponential Backoff + Jitter). Mengatasi konkurensi puncak atau gangguan
- * sementara pada Google Apps Script tanpa membuat request langsung gagal.
+ * jaringan sementara tanpa membuat request langsung gagal.
  */
 async function callServer(action, args, maxRetries = 3) {
   let attempt = 0;
@@ -47,11 +47,9 @@ async function callServer(action, args, maxRetries = 3) {
 
   while (attempt < maxRetries) {
     try {
-      const res = await fetch(GAS_URL, {
+      const res = await fetch(CBT_API_URL, {
         method: 'POST',
-        // WAJIB text/plain — Content-Type application/json memicu CORS
-        // preflight (OPTIONS) yang tidak ditangani Apps Script Web App.
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -86,7 +84,7 @@ async function callServer(action, args, maxRetries = 3) {
       if (attempt < maxRetries) {
         // Exponential backoff dengan jitter: mis. 1000ms, 2000ms + random jitter
         const delayMs = Math.floor(1000 * Math.pow(1.8, attempt - 1) + Math.random() * 400);
-        console.warn(`[gasRun Retry] Aksi "${action}" gagal (percobaan ${attempt}/${maxRetries}): ${err.message}. Mencoba kembali dalam ${delayMs}ms...`);
+        console.warn(`[CBT API Retry] Aksi "${action}" gagal (percobaan ${attempt}/${maxRetries}): ${err.message}. Mencoba kembali dalam ${delayMs}ms...`);
         if (typeof showToast === 'function' && attempt === 2) {
           showToast('Menghubungkan Ulang', 'Server sedang sibuk, sistem mencoba menghubungkan kembali secara otomatis...', 'warning');
         }
@@ -99,11 +97,11 @@ async function callServer(action, args, maxRetries = 3) {
 }
 
 /**
- * Buat shim yang meniru API chainable google.script.run.
+ * Buat adapter API chainable (withSuccessHandler / withFailureHandler).
  * Setiap panggilan menghasilkan runner baru (Thread-Safe) untuk mencegah
  * race-condition saat ada beberapa request berjalan paralel.
  */
-function createGasRunShim() {
+function createCbtApiAdapter() {
   function createRunner() {
     let pendingSuccess = null;
     let pendingFailure = null;
@@ -128,7 +126,7 @@ function createGasRunShim() {
             .then(result => { if (onSuccess) onSuccess(result); })
             .catch(err => {
               if (onFailure) onFailure(err);
-              else console.error('[gasRun] Aksi "' + prop + '" gagal:', err);
+              else console.error('[CBT API] Aksi "' + prop + '" gagal:', err);
             });
 
           return runnerProxy;
@@ -149,7 +147,7 @@ function createGasRunShim() {
 }
 
 // Objek API client global yang dipakai seluruh komponen
-const cbtApi = createGasRunShim();
+const cbtApi = createCbtApiAdapter();
 const gasRun = cbtApi; // Alias kompatibilitas
 window.cbtApi = cbtApi;
 window.gasRun = gasRun;

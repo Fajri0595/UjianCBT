@@ -1479,7 +1479,7 @@
     
     function downloadCsvTemplate() {
       const headers = 'Sesi,Pertanyaan,Passage_Teks,Link_Audio,Pilihan_A,Pilihan_B,Pilihan_C,Pilihan_D,Jawaban_Benar,Poin';
-      const example = 'Listening,"What does the man imply?","","https://drive.google.com/audio.mp3","Option A","Option B","Option C","Option D",B,1';
+      const example = 'Listening,"What does the man imply?","","https://example.com/audio/sample1.mp3","Option A","Option B","Option C","Option D",B,1';
       const csv = headers + '\n' + example;
       const blob = new Blob([csv], { type: 'text/csv' });
       const link = document.createElement('a');
@@ -1541,7 +1541,7 @@
     }
     
     // ════════════════════════════════════════════════════════
-    // UPLOAD AUDIO LANGSUNG KE GOOGLE DRIVE (dari form Dosen)
+    // UPLOAD AUDIO KE CLOUD STORAGE (Vercel Blob / Storage)
     // ════════════════════════════════════════════════════════
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
@@ -1572,7 +1572,7 @@
                 <input type="text" class="input-cbt" value="${res.data.fileUrl}" readonly id="lastAudioUrlField">
                 <button type="button" class="btn-cbt btn-cbt-outline" onclick="copyCredentialField('lastAudioUrlField', this)"><i class="bi bi-clipboard"></i></button>
               </div>`;
-            showToast('Berhasil', 'Audio berhasil diupload ke Google Drive.', 'success');
+            showToast('Berhasil', 'File audio berhasil diunggah ke penyimpanan cloud.', 'success');
           })
           .withFailureHandler(err => { box.innerHTML = ''; showToast('Error', err.message, 'danger'); })
           .uploadAudioToDrive(base64, file.name, file.type || 'audio/mpeg');

@@ -17,8 +17,7 @@ Aplikasi **CBT Bahasa (Computer-Based Test Kebahasaan)** ini telah ditingkatkan 
    ├── favicon.svg           (Icon CBT)
    ├── css/                  (Style & Antarmuka)
    ├── js/
-   │   ├── config.js         (Konfigurasi endpoint API)
-   │   ├── api.js            (Client REST Proxy)
+   │   ├── api.js            (Client REST Adapter & Auto-Retry)
    │   └── app.js            (Seluruh logika UI & Ujian)
    ├── api/
    │   ├── cbt.js            (Router Serverless Vercel)
