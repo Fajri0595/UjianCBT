@@ -73,6 +73,7 @@ async function runDiagnostics() {
       }
     }
 
+    report.sheets = report.tables;
     const preview = await query('SELECT "ID_Ujian", "Nama_Ujian", "ID_Dosen_Pembuat", "Status", "Tanggal_Buka", "Tanggal_Tutup" FROM ujian LIMIT 5');
     report.ujianPreview = preview.rows;
   } catch (err) {

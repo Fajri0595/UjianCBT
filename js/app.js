@@ -1,11 +1,6 @@
 // ============================================================
-// CBT BAHASA — app.js
-// Diekstrak dari JavaScript.html (GAS). Seluruh logika UI di bawah
-// TIDAK DIUBAH — hanya root objek RPC 'google.script.run' diganti
-// menjadi 'gasRun' (lihat js/api.js), sebuah shim yang meniru sintaks
-// chainable withSuccessHandler/withFailureHandler yang sama, tapi
-// berjalan sepenuhnya lewat fetch() ke REST API GAS — tidak ada lagi
-// iframe atau HtmlService.
+// CBT BAHASA — app.js (Single Page Application Client)
+// Arsitektur: Frontend Modern SPA + REST API Backend (Node.js & PostgreSQL)
 // ============================================================
 
 // ════════════════════════════════════════════════════════
@@ -277,7 +272,7 @@
     
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           btn.disabled = false; btn.innerHTML = 'Continue / Mulai Sesi <i class="bi bi-arrow-right"></i>';
           if (res.success) {
             appState.participant = res.data;
@@ -322,7 +317,7 @@
     
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           btn.disabled = false; btn.innerHTML = 'Masuk ke Dashboard Staf';
           if (res.success) {
             appState.staff = res.data;
@@ -430,7 +425,7 @@
       document.getElementById('examListContainer').innerHTML = `<div class="skeleton" style="height:140px;margin-bottom:14px;"></div><div class="skeleton" style="height:140px;"></div>`;
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Error', res.message, 'danger'); return; }
           renderExamList(res.data);
         })
@@ -622,7 +617,7 @@
     function beginExam(idUjian) {
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) {
             showToast('Tidak Bisa Melanjutkan', res.message, 'danger');
             clearActiveExamStorage(idUjian);
@@ -1235,7 +1230,7 @@
       gasRun
         .withSuccessHandler(res => {
           window._isSubmittingExam = false;
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           clearActiveExamStorage(appState.currentExam.ID_Ujian);
           disableExamProtection();
@@ -1300,8 +1295,8 @@
       gasRun
         .withSuccessHandler(res => {
           if (!res) {
-            showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger');
-            document.getElementById('dosenExamTableBody').innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);"><i class="bi bi-wifi-off" style="color:var(--danger);"></i>Tidak ada respons dari server.<br><span style="font-size:12px;">Kemungkinan GAS_URL di js/config.js salah, atau Web App belum di-deploy / belum diberi akses "Anyone".</span><br><button class="btn-cbt btn-cbt-outline" style="margin-top:10px;" onclick="loadDosenDashboard()"><i class="bi bi-arrow-clockwise"></i> Coba Lagi</button></div></td></tr>`;
+            showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger');
+            document.getElementById('dosenExamTableBody').innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);"><i class="bi bi-wifi-off" style="color:var(--danger);"></i>Tidak ada respons dari server.<br><span style="font-size:12px;">Pastikan server backend Vercel aktif dan database PostgreSQL telah terhubung.</span><br><button class="btn-cbt btn-cbt-outline" style="margin-top:10px;" onclick="loadDosenDashboard()"><i class="bi bi-arrow-clockwise"></i> Coba Lagi</button></div></td></tr>`;
             return;
           }
           if (!res.success) {
@@ -1378,7 +1373,7 @@
       if (appState.staff.role === 'admin') {
         wrap.style.display = '';
         gasRun.withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           const select = document.getElementById('examDosenAssign');
           const currentVal = appState.editingExamId ? select.value : 'ADMIN';
@@ -1435,7 +1430,7 @@
       const fn = appState.editingExamId ? 'updateExam' : 'createExam';
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           showToast('Berhasil', res.message, 'success');
           if (!appState.editingExamId) openUploadCsv(res.data.ID_Ujian, res.data.Nama_Ujian);
@@ -1510,7 +1505,7 @@
     function confirmImportCsv() {
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           showToast('Berhasil', `${res.data.success} soal berhasil diimpor.`, 'success');
           navigateTo('dosenDashboard');
@@ -1706,7 +1701,7 @@
       navigateTo('examResultsDosen');
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           const hasil = res.data;
           const total = hasil.length;
@@ -1760,7 +1755,7 @@
     function loadAdminDashboard() {
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Error', res.message, 'danger'); return; }
           const d = res.data;
           
@@ -2006,7 +2001,7 @@
     function loadLecturers() {
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           document.getElementById('lecturerTableBody').innerHTML = res.data.length ? res.data.map(d => `
             <tr>
@@ -2030,7 +2025,7 @@
       if (!nama || !username) { showToast('Peringatan', 'Lengkapi semua field.', 'warning'); return; }
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           closeModal('modalAddLecturer');
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           loadLecturers();
@@ -2047,7 +2042,7 @@
     }
     function toggleLecturer(id, statusBaru) {
       gasRun.withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; } showToast(res.success ? 'Berhasil' : 'Gagal', res.message, res.success ? 'success' : 'danger'); loadLecturers(); }).toggleLecturerStatus(id, statusBaru);
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; } showToast(res.success ? 'Berhasil' : 'Gagal', res.message, res.success ? 'success' : 'danger'); loadLecturers(); }).toggleLecturerStatus(id, statusBaru);
     }
     function resetPassword(id) {
       const row = (document.getElementById('lecturerTableBody').querySelector(`button[onclick="resetPassword('${id}')"]`) || {}).closest ? document.getElementById('lecturerTableBody').querySelector(`button[onclick="resetPassword('${id}')"]`).closest('tr') : null;
@@ -2055,7 +2050,7 @@
       const usernameDosen = row ? row.children[1].textContent.trim() : '';
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           showCredentialModal({
             title: 'Password Dosen Direset',
@@ -2347,7 +2342,7 @@
       const rombel = document.getElementById('genCodeRombel').value.trim();
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           closeModal('modalGenerateCodes');
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           showToast('Berhasil', res.message, 'success');
@@ -2580,8 +2575,8 @@
       gasRun
         .withSuccessHandler(res => {
           if (!res) {
-            showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger');
-            document.getElementById('allExamsTableBody').innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);"><i class="bi bi-wifi-off" style="color:var(--danger);"></i>Tidak ada respons dari server.<br><span style="font-size:12px;">Kemungkinan GAS_URL di js/config.js salah, atau Web App belum di-deploy / belum diberi akses "Anyone".</span><br><button class="btn-cbt btn-cbt-outline" style="margin-top:10px;" onclick="loadAllExamsAdmin()"><i class="bi bi-arrow-clockwise"></i> Coba Lagi</button></div></td></tr>`;
+            showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger');
+            document.getElementById('allExamsTableBody').innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);"><i class="bi bi-wifi-off" style="color:var(--danger);"></i>Tidak ada respons dari server.<br><span style="font-size:12px;">Pastikan server backend Vercel aktif dan database PostgreSQL telah terhubung.</span><br><button class="btn-cbt btn-cbt-outline" style="margin-top:10px;" onclick="loadAllExamsAdmin()"><i class="bi bi-arrow-clockwise"></i> Coba Lagi</button></div></td></tr>`;
             return;
           }
           if (!res.success) {
@@ -2623,7 +2618,7 @@
       window._reassignTargetExamId = idUjian;
       document.getElementById('reassignExamNameLabel').textContent = namaUjian;
       gasRun.withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
         if (!res.success) return;
         const select = document.getElementById('reassignDosenSelect');
         select.innerHTML = '<option value="ADMIN">Dikelola Langsung oleh Admin</option>' +
@@ -2637,7 +2632,7 @@
       const idDosenBaru = document.getElementById('reassignDosenSelect').value;
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           closeModal('modalReassignDosen');
           if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
           showToast('Berhasil', res.message, 'success');
@@ -2654,7 +2649,7 @@
       const filterUjian = document.getElementById('reportExamFilter').value;
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           window._globalReportCache = res.data;
           const total = res.data.length;
@@ -2675,7 +2670,7 @@
         .getGlobalReport(filterUjian || null);
     
       gasRun.withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
         if (res.success) document.getElementById('reportExamFilter').innerHTML = '<option value="">Semua Ujian</option>' + res.data.map(u => `<option value="${u.ID_Ujian}">${u.Nama_Ujian}</option>`).join('');
       }).getAllExamsAdmin();
     }
@@ -2686,7 +2681,7 @@
     function loadActivityLog() {
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server. Periksa koneksi internet Anda, dan pastikan GAS_URL di js/config.js sudah diisi dengan URL Web App (/exec) yang benar dan aktif.', 'danger'); return; }
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           document.getElementById('activityLogTableBody').innerHTML = res.data.length ? res.data.map(l => `
             <tr><td style="white-space:nowrap;">${formatDate(l.Timestamp)}</td><td><span class="badge-pill badge-indigo">${l.Peran}</span></td>
@@ -2808,10 +2803,9 @@
         .withSuccessHandler(res => {
           if (!res) {
             box.innerHTML = `<div style="background:var(--danger-bg);color:var(--danger-text);border-radius:var(--radius-input);padding:14px;font-size:13px;">
-              <strong><i class="bi bi-wifi-off"></i> Tidak ada respons dari server sama sekali.</strong><br>
-              Ini mengindikasikan masalah pada koneksi <code>fetch()</code> ke REST API GAS itu sendiri (bukan pada data) —
-              kemungkinan GAS_URL di js/config.js salah, deployment belum diperbarui ke versi terbaru, atau ada gangguan jaringan/browser.
-              Coba <strong>hard refresh (Ctrl+Shift+R)</strong> dan pastikan Anda sudah membuat <strong>New Version</strong> di Deploy → Manage Deployments.
+              <strong><i class="bi bi-wifi-off"></i> Tidak ada respons dari server API CBT.</strong><br>
+              Server backend belum merespons permintaan. Pastikan koneksi internet aktif, project di Vercel dalam status Ready, dan database telah terhubung.
+              Coba <strong>refresh halaman (Ctrl+Shift+R)</strong> untuk mencoba kembali.
             </div>`;
             return;
           }
@@ -2820,10 +2814,11 @@
             return;
           }
           const d = res.data;
-          const sheetRows = d.sheets.map(s => `
+          const tableList = d.tables || d.sheets || [];
+          const tableRows = tableList.map(s => `
             <tr>
-              <td>${s.name}</td>
-              <td>${s.exists ? '<span class="badge-pill badge-success"><span class="dot"></span>Ada</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>Hilang</span>'}</td>
+              <td><code>${s.name}</code></td>
+              <td>${s.exists ? '<span class="badge-pill badge-success"><span class="dot"></span>Tersedia</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>Belum Ada</span>'}</td>
               <td>${s.exists ? s.rowCount + ' baris data' : '-'}</td>
             </tr>`).join('');
     
@@ -2833,25 +2828,25 @@
               <td>${u.Nama_Ujian || '<em style="color:var(--danger);">(kosong)</em>'}</td>
               <td><code>${u.ID_Dosen_Pembuat || '<span style="color:var(--danger);">(KOSONG!)</span>'}</code></td>
               <td>${u.Status || '<em style="color:var(--danger);">(kosong)</em>'}</td>
-              <td style="font-size:11px;">${u.Tanggal_Buka}</td>
+              <td style="font-size:11px;">${u.Tanggal_Buka || '-'}</td>
             </tr>`).join('');
     
           box.innerHTML = `
             <div style="background:${d.ok ? 'var(--success-bg)' : 'var(--warning-bg)'};color:${d.ok ? 'var(--success-text)' : 'var(--warning-text)'};border-radius:var(--radius-input);padding:14px;font-size:13px;margin-bottom:14px;">
-              <strong><i class="bi ${d.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}"></i> ${d.ok ? 'Sistem sehat — koneksi & struktur database normal.' : 'Ditemukan masalah pada struktur database.'}</strong>
+              <strong><i class="bi ${d.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}"></i> ${d.ok ? 'Sistem sehat — koneksi API & struktur tabel database PostgreSQL normal.' : 'Ditemukan masalah pada struktur tabel database.'}</strong>
             </div>
             <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
-              Spreadsheet ID: <code>${d.spreadsheetId || '-'}</code><br>
-              ${d.spreadsheetUrl ? `<a href="${d.spreadsheetUrl}" target="_blank" style="color:var(--primary);">Buka Spreadsheet Database →</a>` : ''}
+              Mesin Database: <strong>${d.databaseType || 'PostgreSQL Relasional (Neon/Vercel)'}</strong><br>
+              Status Koneksi: <span class="badge-pill badge-success" style="display:inline-flex;"><span class="dot"></span>Terhubung Aktif</span>
             </div>
             <div class="table-wrap"><table class="table-cbt">
-              <thead><tr><th>Nama Sheet</th><th>Status</th><th>Jumlah Data</th></tr></thead>
-              <tbody>${sheetRows}</tbody>
+              <thead><tr><th>Nama Tabel Relasional</th><th>Status Integritas</th><th>Total Baris Data</th></tr></thead>
+              <tbody>${tableRows}</tbody>
             </table></div>
             ${d.errors.length ? `<div style="background:var(--danger-bg);color:var(--danger-text);border-radius:var(--radius-input);padding:12px;font-size:12.5px;margin-top:14px;"><strong>Detail Error:</strong><br>${d.errors.join('<br>')}</div>` : ''}
             ${ujianPreviewRows ? `
-            <div style="margin-top:20px;font-weight:700;font-family:'Poppins';font-size:14px;">Isi Mentah Sheet "Ujian" (untuk cek nilai ID_Dosen_Pembuat)</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Jika kolom "ID Dosen Pembuat" di bawah ini BUKAN persis <code>ADMIN</code> (atau ID dosen yang valid), itulah sebab ujian tidak muncul di daftar.</div>
+            <div style="margin-top:20px;font-weight:700;font-family:'Poppins';font-size:14px;">Data Tabel "Ujian" (Integritas Relasi Dosen & Ujian)</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Menampilkan verifikasi relasi penugasan dosen pembuat paket ujian aktif.</div>
             <div class="table-wrap"><table class="table-cbt">
               <thead><tr><th>ID Ujian</th><th>Nama Ujian</th><th>ID Dosen Pembuat</th><th>Status</th><th>Tanggal Buka</th></tr></thead>
               <tbody>${ujianPreviewRows}</tbody>

@@ -1,20 +1,10 @@
 // ============================================================
-// API.JS — Klien REST untuk backend Google Apps Script
+// API.JS — Klien REST API CBT Bahasa (Client Service Adapter)
 // ============================================================
-// CBT Bahasa awalnya dibangun dengan google.script.run (RPC lewat
-// iframe HtmlService). Setelah migrasi ke GAS-PRO-API, frontend ini
-// adalah situs statis biasa (bisa di-host di GitHub Pages) dan backend
-// GAS murni jadi REST API JSON (doGet/doPost). Supaya app.js (2000+
-// baris logika UI) tidak perlu diubah satu per satu, file ini
-// menyediakan objek "gasRun" yang meniru sintaks chainable
-// google.script.run yang lama:
-//
-//    gasRun.withSuccessHandler(cb).withFailureHandler(errCb).namaAksi(arg1, arg2)
-//
-// tapi implementasinya 100% fetch() ke REST API GAS_URL — TIDAK ADA
-// iframe, TIDAK ADA HtmlService, TIDAK ADA google.script.run asli.
-// Bisa dibuktikan sendiri: buka DevTools → Network, setiap aksi akan
-// tampil sebagai request fetch/XHR biasa ke GAS_URL, bukan iframe.
+// File ini menghubungkan antarmuka Single Page Application (SPA)
+// dengan Serverless API backend (Node.js & PostgreSQL).
+// Dilengkapi mekanisme Resilience Auto-Retry (Exponential Backoff & Jitter),
+// penanganan sesi otomatis, serta proxy thread-safe.
 // ============================================================
 
 /**
@@ -158,6 +148,8 @@ function createGasRunShim() {
   });
 }
 
-// Objek global yang dipakai seluruh app.js — nama "gasRun" sengaja dipilih
-// dekat dengan "google.script.run" lama supaya jelas ini penggantinya.
-const gasRun = createGasRunShim();
+// Objek API client global yang dipakai seluruh komponen
+const cbtApi = createGasRunShim();
+const gasRun = cbtApi; // Alias kompatibilitas
+window.cbtApi = cbtApi;
+window.gasRun = gasRun;

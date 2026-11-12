@@ -492,8 +492,8 @@
       </div>
 
       <div class="card-cbt" style="margin-bottom:18px;">
-        <div class="fs-title" style="display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:4px;"><i class="bi bi-mic"></i> Upload Audio Pendukung (Opsional)</div>
-        <div class="fs-sub" style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px;">Unggah file audio listening langsung ke Google Drive dari sini, lalu salin link yang dihasilkan ke kolom <code>Link_Audio</code> pada CSV Anda.</div>
+        <div class="fs-title" style="display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:4px;"><i class="bi bi-mic"></i> Upload Audio Listening (Cloud Storage)</div>
+        <div class="fs-sub" style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px;">Unggah file audio listening MP3 langsung ke penyimpanan server/cloud dari sini, lalu salin link URL yang dihasilkan ke kolom <code>Link_Audio</code> pada CSV atau form butir soal.</div>
         <input type="file" id="audioFileInput" accept="audio/*" style="display:none;" onchange="handleAudioFileSelected(event)">
         <button type="button" class="btn-cbt btn-cbt-teal" onclick="document.getElementById('audioFileInput').click()"><i class="bi bi-upload"></i> Pilih & Upload File Audio</button>
         <div id="audioUploadResult" style="margin-top:14px;"></div>
@@ -994,8 +994,8 @@
       </form>
 
       <div class="form-section-card" style="margin-top:24px;">
-        <div class="fs-title"><i class="bi bi-heart-pulse"></i> Diagnostik Sistem</div>
-        <div class="fs-sub">Cek koneksi ke Google Sheets & struktur database tanpa perlu membuka DevTools browser.</div>
+        <div class="fs-title"><i class="bi bi-heart-pulse"></i> Diagnostik Sistem & Database</div>
+        <div class="fs-sub">Cek status koneksi server API, driver PostgreSQL, dan integritas tabel database relasional.</div>
         <button type="button" class="btn-cbt btn-cbt-outline" onclick="runDiagnostics()"><i class="bi bi-play-circle"></i> Jalankan Diagnostik Sistem</button>
         <div id="diagnosticsResult" style="margin-top:16px;"></div>
       </div>
@@ -1131,7 +1131,7 @@
       <div style="margin-top:14px;" id="qfAudioWrap">
         <label class="field-label">Link Audio (untuk sesi Listening)</label>
         <div style="display:flex;gap:8px;margin-top:4px;">
-          <input type="text" id="qfLinkAudio" class="input-cbt" placeholder="https://drive.google.com/...">
+          <input type="text" id="qfLinkAudio" class="input-cbt" placeholder="https://storage-audio.com/listening-1.mp3">
           <input type="file" id="qfAudioFileInput" accept="audio/*" style="display:none;" onchange="handleQfAudioSelected(event)">
           <button type="button" class="btn-cbt btn-cbt-outline" onclick="document.getElementById('qfAudioFileInput').click()"><i class="bi bi-upload"></i></button>
         </div>
@@ -1219,7 +1219,7 @@
       <div style="margin-top:14px;" id="bfAudioWrap">
         <label class="field-label">Link Audio (untuk sesi Listening)</label>
         <div style="display:flex;gap:8px;margin-top:4px;">
-          <input type="text" id="bfLinkAudio" class="input-cbt" placeholder="https://drive.google.com/...">
+          <input type="text" id="bfLinkAudio" class="input-cbt" placeholder="https://storage-audio.com/listening-1.mp3">
           <input type="file" id="bfAudioFileInput" accept="audio/*" style="display:none;" onchange="handleBfAudioSelected(event)">
           <button type="button" class="btn-cbt btn-cbt-outline" onclick="document.getElementById('bfAudioFileInput').click()"><i class="bi bi-upload"></i></button>
         </div>
