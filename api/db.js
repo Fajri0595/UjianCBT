@@ -9,14 +9,42 @@ const { Pool } = require('pg');
 
 let pool = null;
 
+function getConnectionString() {
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (process.env.NEON_DATABASE_URL) return process.env.NEON_DATABASE_URL;
+  if (process.env.POSTGRES_PRISMA_URL) return process.env.POSTGRES_PRISMA_URL;
+  if (process.env.POSTGRES_URL_NON_POOLING) return process.env.POSTGRES_URL_NON_POOLING;
+  if (process.env.DATABASE_URL_UNPOOLED) return process.env.DATABASE_URL_UNPOOLED;
+
+  // Variabel individual PG
+  if (process.env.PGHOST && process.env.PGDATABASE) {
+    const user = encodeURIComponent(process.env.PGUSER || 'postgres');
+    const pass = process.env.PGPASSWORD ? `:${encodeURIComponent(process.env.PGPASSWORD)}` : '';
+    const host = process.env.PGHOST;
+    const port = process.env.PGPORT || 5432;
+    const db = process.env.PGDATABASE;
+    return `postgres://${user}${pass}@${host}:${port}/${db}?sslmode=require`;
+  }
+
+  // Jika running lokal di komputer tanpa env
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    return 'postgres://postgres:postgres@localhost:5432/cbt_bahasa';
+  }
+
+  return null;
+}
+
 function getPool() {
   if (pool) return pool;
 
-  const connectionString =
-    process.env.POSTGRES_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.DATABASE_URL ||
-    'postgres://postgres:postgres@localhost:5432/cbt_bahasa';
+  const connectionString = getConnectionString();
+
+  if (!connectionString) {
+    throw new Error(
+      'Koneksi database belum disetel di Vercel. Buka Vercel > Storage > pilih database Neon Anda > tab Project Connections > hubungkan ke "UjianCBT", lalu lakukan REDEPLOY.'
+    );
+  }
 
   const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 

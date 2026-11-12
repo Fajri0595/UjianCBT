@@ -151,11 +151,13 @@ module.exports = async function handler(req, res) {
     const result = await fn(...(Array.isArray(args) ? args : [args]));
     return res.status(200).json(result);
   } catch (error) {
-    console.error(`[CBT Action Error: ${action}]`, error);
-    return res.status(500).json({
+    console.error(`[CBT Action Error: ${action}]`, error.message);
+    // Kembalikan HTTP 200 dengan success: false agar frontend (api.js) langsung
+    // menampilkan pesan error spesifik dan tidak mengulang-ulang (retry) overload
+    return res.status(200).json({
       success: false,
       data: null,
-      message: error.message || 'Terjadi kesalahan internal pada server.'
+      message: error.message || 'Terjadi kesalahan pada server saat memproses aksi.'
     });
   }
 };
