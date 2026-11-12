@@ -856,6 +856,12 @@
       }
     }
     
+    function closeCheatWarningModal() {
+      const m = document.getElementById('modalCheatGuard');
+      if (m) m.style.display = 'none';
+      dismissCheatWarningAndRestoreFullscreen();
+    }
+
     function dismissCheatWarningAndRestoreFullscreen() {
       closeModal('modalCheatWarning');
       if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -1779,6 +1785,37 @@
             badgeHasil.innerHTML = `<i class="bi bi-mortarboard"></i> ${totalSelesai} Peserta Selesai`;
           }
 
+          // Render Metrik Live Status Database & Kuota Free Tier (Vercel / Neon)
+          if (d.dbUsage) {
+            const usedEl = document.getElementById('dbUsedStorage');
+            const percentEl = document.getElementById('dbPercentUsed');
+            const fillEl = document.getElementById('dbQuotaMeterFill');
+            const statusEl = document.getElementById('dbStatusBadge');
+            const tablesEl = document.getElementById('dbTableStatsMini');
+
+            if (usedEl) usedEl.textContent = `${d.dbUsage.usedMB || '0.00'} MB`;
+            if (percentEl) percentEl.textContent = `${d.dbUsage.percentUsed || 0}%`;
+            if (fillEl) {
+              const p = Math.min(100, Math.max(0.2, Number(d.dbUsage.percentUsed) || 0));
+              fillEl.style.width = p + '%';
+              fillEl.className = 'quota-meter-fill' + (p > 90 ? ' danger' : p > 70 ? ' warning' : '');
+            }
+            if (statusEl) {
+              const isWarning = (d.dbUsage.percentUsed > 70);
+              const isDanger = (d.dbUsage.percentUsed > 90);
+              statusEl.className = 'badge-pill ' + (isDanger ? 'badge-danger' : isWarning ? 'badge-amber' : 'badge-success');
+              statusEl.innerHTML = `<span class="dot"></span>${d.dbUsage.statusText || 'Optimal (<70%)'}`;
+            }
+            if (tablesEl && Array.isArray(d.dbUsage.tableStats) && d.dbUsage.tableStats.length) {
+              tablesEl.innerHTML = d.dbUsage.tableStats.map(t => `
+                <div style="font-size:11.5px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border-color);padding:3px 0;">
+                  <code>${t.name}</code>
+                  <span style="color:var(--text-muted);font-weight:600;">${t.rows} baris (${t.sizeKB} KB)</span>
+                </div>
+              `).join('');
+            }
+          }
+
           renderDistribusiChart(d.distribusi);
           renderKelulusanDonutChart(d.lulus, d.tidakLulus, tingkatKelulusan);
           renderDashboardRecentLogs(d.recentLogs);
@@ -2273,13 +2310,16 @@
         let actionButtons = '';
         if (isActive) {
           actionButtons = `
-            <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;">
+              <button class="btn-icon-sm" style="color:#25D366;" title="Kirim Akses via WhatsApp" onclick="sendWhatsAppCode('${p.ID_Peserta}')"><i class="bi bi-whatsapp"></i></button>
+              <button class="btn-icon-sm" title="Cetak Slip Kartu (Thermal/A4)" onclick="printSingleThermalSlip('${p.ID_Peserta}')"><i class="bi bi-printer"></i></button>
               <button class="btn-icon-sm" title="Salin Kode Akses" onclick="copyAccessCode('${p.Kode_Akses}')"><i class="bi bi-clipboard"></i></button>
               <button class="btn-icon-sm" title="Nonaktifkan" onclick="deactivateCode('${p.ID_Peserta}')"><i class="bi bi-slash-circle"></i></button>
             </div>`;
         } else if (isUsed) {
           actionButtons = `
-            <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+              <button class="btn-icon-sm" title="Cetak Bukti Nilai Thermal" onclick="printScoreReceiptThermal('${p.ID_Peserta}')"><i class="bi bi-receipt"></i></button>
               <button class="btn-cbt btn-cbt-outline" style="padding:4px 10px;font-size:11.5px;" onclick="viewParticipantScoreDetail('${p.ID_Peserta}', '${escapeHtml(p.Nama || 'Peserta')}')">
                 <i class="bi bi-bar-chart-line"></i> Lihat Nilai
               </button>
@@ -2287,7 +2327,7 @@
         } else {
           // Expired / Nonaktif
           actionButtons = `
-            <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <div style="display:flex;gap:5px;justify-content:flex-end;align-items:center;">
               <button class="btn-icon-sm" title="Aktifkan Kembali" onclick="reactivateCode('${p.ID_Peserta}')"><i class="bi bi-arrow-counterclockwise"></i></button>
               <button class="btn-icon-sm" style="color:var(--danger);" title="Hapus Data Peserta" onclick="deleteParticipant('${p.ID_Peserta}', '${escapeHtml(p.Nama || p.Kode_Akses)}')"><i class="bi bi-trash"></i></button>
             </div>`;
@@ -2497,6 +2537,7 @@
     
     function printAccessCodes() {
       const idUjian = document.getElementById('printCodesExamSelect').value;
+      const format = document.getElementById('printCodesFormatSelect')?.value || 'a4';
       const all = window._participantsCache || [];
       // Hanya kode yang BELUM diakses (status 'Aktif') yang boleh dicetak/dibagikan —
       // kode yang sudah 'Used' atau 'Expired' tidak berguna lagi untuk peserta baru.
@@ -2512,8 +2553,48 @@
       }));
     
       const heading = idUjian ? `Kode Akses — ${getExamNameById(idUjian)}` : 'Kode Akses — Semua Ujian';
+      const instName = appState.systemSettings?.institutionName || 'PUSAT LAYANAN BAHASA CBT';
       const win = window.open('', '_blank');
-      win.document.write(buildPrintableCodesHtml(codesData, heading));
+
+      if (format === 'thermal') {
+        // Format Cetak Struk Roll Thermal POS (58mm / 80mm)
+        const slipsHtml = codesData.map((c, i) => `
+          <div class="thermal-slip" style="page-break-after:always;margin-bottom:14px;">
+            <div class="title">${escapeHtml(instName)}</div>
+            <div class="sub">KARTU UJIAN #${i + 1}</div>
+            <div class="line"></div>
+            <div class="row"><span>Nama:</span><span><strong>${escapeHtml(c.nama || 'Peserta Ujian')}</strong></span></div>
+            <div class="row"><span>Ujian:</span><span>${escapeHtml(c.ujian)}</span></div>
+            <div class="line"></div>
+            <div style="font-size:10px;font-weight:bold;">KODE AKSES LOGIN:</div>
+            <div class="code-box">${c.kode}</div>
+            <div class="line"></div>
+            <div class="footer">Jaga kerahasiaan kode login.<br>Dicetak: ${new Date().toLocaleDateString('id-ID')}</div>
+          </div>
+        `).join('');
+
+        win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Slip Thermal - ${heading}</title>
+          <style>
+            body { margin: 0; padding: 10px; font-family: 'Courier New', monospace; background: #fff; color: #000; }
+            .thermal-slip { max-width: 270px; margin: 0 auto; text-align: center; border: 1px dashed #444; padding: 12px; border-radius: 4px; }
+            .title { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+            .sub { font-size: 10px; color: #444; margin-bottom: 6px; }
+            .line { border-top: 1px dashed #444; margin: 6px 0; }
+            .row { display: flex; justify-content: space-between; font-size: 10.5px; margin-bottom: 3px; text-align: left; }
+            .code-box { font-size: 20px; font-weight: bold; letter-spacing: 2px; margin: 8px 0; padding: 6px; border: 1.5px solid #000; text-align: center; }
+            .footer { font-size: 9px; color: #555; }
+            @media print { body { padding: 0; } .thermal-slip { border: none; } .btn-print { display: none; } }
+          </style>
+        </head><body>
+          <div style="text-align:center;margin-bottom:12px;" class="btn-print">
+            <button onclick="window.print()" style="padding:8px 18px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Seluruh Slip Thermal (${codesData.length})</button>
+          </div>
+          ${slipsHtml}
+        </body></html>`);
+      } else {
+        win.document.write(buildPrintableCodesHtml(codesData, heading));
+      }
+
       win.document.close();
       closeModal('modalPrintCodes');
     }
@@ -2542,6 +2623,153 @@
       link.download = 'kode_akses_peserta.csv';
       link.click();
       closeModal('modalPrintCodes');
+    }
+
+    // ── Distribusi WhatsApp & Cetak Struk Thermal (Skill Enhancement) ──
+    function sendWhatsAppCode(idPeserta) {
+      const p = (window._participantsCache || []).find(x => x.ID_Peserta === idPeserta);
+      if (!p) return;
+      const examName = getExamNameById(p.ID_Ujian_Target);
+      const instName = appState.systemSettings?.institutionName || 'Pusat Layanan Bahasa CBT';
+      const url = window.location.origin;
+
+      let cleanPhone = (p.Kontak || '').replace(/[^0-9]/g, '');
+      if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.slice(1);
+
+      const text = `Halo *${p.Nama || 'Peserta Ujian'}*,\n\nBerikut adalah informasi akun CBT Kebahasaan Anda:\n🏛️ *Instansi*: ${instName}\n📝 *Paket Ujian*: ${examName}\n🏷️ *Rombel*: ${p.Rombel || 'Umum'}\n🔑 *Kode Akses*: *${p.Kode_Akses}*\n🌐 *Link Ujian*: ${url}\n\nSilakan buka tautan di atas dan masukkan kode akses Anda untuk login. Simpan pesan ini dengan baik.\nSemoga sukses dalam ujian!`;
+
+      const waUrl = cleanPhone 
+        ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+      window.open(waUrl, '_blank');
+    }
+
+    function copyWhatsAppBroadcastText() {
+      const idUjian = document.getElementById('printCodesExamSelect').value;
+      const all = window._participantsCache || [];
+      let filtered = idUjian ? all.filter(p => p.ID_Ujian_Target === idUjian) : all;
+      filtered = filtered.filter(p => p.Status_Kode === 'Aktif');
+
+      if (!filtered.length) {
+        showToast('Peringatan', 'Tidak ada kode akses aktif untuk dibuatkan teks broadcast.', 'warning');
+        return;
+      }
+
+      const examName = idUjian ? getExamNameById(idUjian) : 'Ujian CBT';
+      const instName = appState.systemSettings?.institutionName || 'Pusat Layanan Bahasa CBT';
+      const url = window.location.origin;
+
+      let text = `📢 *DAFTAR KODE AKSES UJIAN CBT*\n🏛️ *Instansi*: ${instName}\n📝 *Ujian*: ${examName}\n🌐 *Link Login*: ${url}\n\n`;
+      filtered.forEach((p, idx) => {
+        text += `${idx + 1}. *${p.Nama || 'Peserta'}* (${p.Rombel || 'Umum'}) ➔ Kode: \`${p.Kode_Akses}\`\n`;
+      });
+      text += `\n_Harap login tepat waktu dan simpan kode akses Anda masing-masing._`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Teks Disalin', `${filtered.length} format pesan broadcast WhatsApp berhasil disalin ke clipboard!`, 'success');
+        closeModal('modalPrintCodes');
+      }).catch(() => {
+        showToast('Info', 'Gagal menyalin otomatis. Silakan unduh CSV.', 'warning');
+      });
+    }
+
+    function printSingleThermalSlip(idPeserta) {
+      const p = (window._participantsCache || []).find(x => x.ID_Peserta === idPeserta);
+      if (!p) return;
+      const examName = getExamNameById(p.ID_Ujian_Target);
+      const instName = appState.systemSettings?.institutionName || 'PUSAT LAYANAN BAHASA';
+
+      const slipHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Slip Ujian - ${p.Kode_Akses}</title>
+        <style>
+          body { margin: 0; padding: 12px; font-family: 'Courier New', monospace; background: #fff; color: #000; }
+          .thermal-slip { max-width: 280px; margin: 0 auto; text-align: center; border: 1px dashed #444; padding: 14px; border-radius: 4px; }
+          .title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+          .sub { font-size: 10px; color: #444; margin-bottom: 8px; }
+          .line { border-top: 1px dashed #333; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; text-align: left; }
+          .row span:first-child { color: #555; }
+          .code-box { font-size: 22px; font-weight: bold; letter-spacing: 2px; margin: 10px 0; padding: 8px; border: 1.5px solid #000; text-align: center; }
+          .footer { font-size: 9.5px; color: #555; margin-top: 8px; }
+          @media print { body { padding: 0; } .thermal-slip { border: none; } .btn-print { display: none; } }
+        </style>
+      </head><body>
+        <div style="text-align:center;margin-bottom:10px;" class="btn-print">
+          <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Slip Thermal</button>
+        </div>
+        <div class="thermal-slip">
+          <div class="title">${escapeHtml(instName)}</div>
+          <div class="sub">KARTU LOGIN UJIAN CBT</div>
+          <div class="line"></div>
+          <div class="row"><span>Peserta:</span><span><strong>${escapeHtml(p.Nama || 'Peserta Ujian')}</strong></span></div>
+          <div class="row"><span>Rombel:</span><span>${escapeHtml(p.Rombel || 'Umum')}</span></div>
+          <div class="row"><span>Ujian:</span><span>${escapeHtml(examName)}</span></div>
+          <div class="line"></div>
+          <div style="font-size:10.5px;color:#333;font-weight:bold;">KODE AKSES LOGIN:</div>
+          <div class="code-box">${p.Kode_Akses}</div>
+          <div class="line"></div>
+          <div class="footer">Jaga kerahasiaan kode login ini.<br>Dicetak: ${new Date().toLocaleString('id-ID')}</div>
+        </div>
+      </body></html>`;
+
+      const w = window.open('', '_blank');
+      w.document.write(slipHtml);
+      w.document.close();
+    }
+
+    function printScoreReceiptThermal(idPeserta) {
+      gasRun
+        .withSuccessHandler(res => {
+          if (!res || !res.success || !res.data) {
+            showToast('Informasi', 'Data hasil ujian belum tersedia atau belum selesai.', 'warning');
+            return;
+          }
+          const h = res.data;
+          const instName = appState.systemSettings?.institutionName || 'PUSAT LAYANAN BAHASA';
+          const examName = getExamNameById(h.ID_Ujian);
+
+          const slipHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bukti Nilai - ${h.ID_Hasil}</title>
+            <style>
+              body { margin: 0; padding: 12px; font-family: 'Courier New', monospace; background: #fff; color: #000; }
+              .thermal-slip { max-width: 280px; margin: 0 auto; text-align: center; border: 1px dashed #444; padding: 14px; border-radius: 4px; }
+              .title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+              .sub { font-size: 10px; color: #444; margin-bottom: 8px; }
+              .line { border-top: 1px dashed #333; margin: 8px 0; }
+              .row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; text-align: left; }
+              .total-box { font-size: 26px; font-weight: bold; margin: 10px 0; padding: 6px; border: 1.5px solid #000; text-align: center; }
+              .footer { font-size: 9.5px; color: #555; margin-top: 8px; }
+              @media print { body { padding: 0; } .thermal-slip { border: none; } .btn-print { display: none; } }
+            </style>
+          </head><body>
+            <div style="text-align:center;margin-bottom:10px;" class="btn-print">
+              <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Bukti Nilai Thermal</button>
+            </div>
+            <div class="thermal-slip">
+              <div class="title">${escapeHtml(instName)}</div>
+              <div class="sub">BUKTI HASIL TES CBT RESMI</div>
+              <div class="line"></div>
+              <div class="row"><span>Nama:</span><span><strong>${escapeHtml(h.Nama_Peserta || 'Peserta')}</strong></span></div>
+              <div class="row"><span>Paket:</span><span>${escapeHtml(examName)}</span></div>
+              <div class="row"><span>Tanggal:</span><span>${h.Waktu_Selesai ? new Date(h.Waktu_Selesai).toLocaleDateString('id-ID') : '-'}</span></div>
+              <div class="line"></div>
+              <div class="row"><span>Listening:</span><span>${h.Skor_Listening || 0}</span></div>
+              <div class="row"><span>Structure:</span><span>${h.Skor_Grammar || 0}</span></div>
+              <div class="row"><span>Reading:</span><span>${h.Skor_Reading || 0}</span></div>
+              <div class="line"></div>
+              <div style="font-size:10.5px;color:#333;font-weight:bold;">SKOR AKHIR TOTAL:</div>
+              <div class="total-box">${h.Skor_Total || 0}</div>
+              <div class="row" style="justify-content:center;font-weight:bold;">Status: ${h.Status_Lulus || 'Selesai'}</div>
+              <div class="line"></div>
+              <div class="footer">ID Hasil: ${h.ID_Hasil}<br>Hasil ini sah dan tercatat di database sistem.</div>
+            </div>
+          </body></html>`;
+
+          const w = window.open('', '_blank');
+          w.document.write(slipHtml);
+          w.document.close();
+        })
+        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+        .getParticipantResultDetail(idPeserta);
     }
     
     // Ditampilkan otomatis setelah generate kode massal baru, agar admin bisa
@@ -2698,6 +2926,12 @@
     function applyLoadedSettings(settings) {
       if (!settings) return;
       appState.systemSettings = settings;
+      if (settings.institutionName) {
+        const brandEls = document.querySelectorAll('.app-sidebar .brand .name');
+        brandEls.forEach(el => el.textContent = settings.institutionName);
+        const subEls = document.querySelectorAll('#staffPortalLabel');
+        subEls.forEach(el => el.textContent = 'Portal ' + settings.institutionName);
+      }
       if (settings.audioMaxPlays !== undefined) appState.audioMaxPlayLimit = Number(settings.audioMaxPlays) || 2;
       if (settings.cheatTolerance !== undefined) appState.maxCheatViolations = Number(settings.cheatTolerance);
       if (settings.cheatAction !== undefined) appState.cheatAction = settings.cheatAction;

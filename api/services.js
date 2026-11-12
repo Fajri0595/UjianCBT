@@ -1133,6 +1133,46 @@ async function getAdminDashboardData() {
   });
   const distribusi = bucketLabels.map((label) => ({ label, count: bucketCounts[label] }));
 
+  // Metrik Live Penggunaan Database & Kuota Free Tier (PostgreSQL / Neon / Vercel)
+  const dbUsage = {
+    usedBytes: 0,
+    usedMB: '0.00',
+    maxMB: 512, // Standar Free Tier Neon / Vercel Postgres
+    percentUsed: 0,
+    statusText: 'Aman (<70%)',
+    tableStats: []
+  };
+
+  try {
+    const sizeRes = await query(`SELECT pg_database_size(current_database()) AS db_bytes`);
+    if (sizeRes.rows.length) {
+      const bytes = parseInt(sizeRes.rows[0].db_bytes, 10) || 0;
+      const mb = bytes / (1024 * 1024);
+      dbUsage.usedBytes = bytes;
+      dbUsage.usedMB = mb.toFixed(2);
+      dbUsage.percentUsed = parseFloat(((mb / 512) * 100).toFixed(2));
+      dbUsage.statusText = mb > 450 ? 'Kritis (>90%)' : mb > 350 ? 'Peringatan (>70%)' : 'Optimal (<70%)';
+    }
+
+    const tStats = await query(`
+      SELECT 
+        c.relname AS table_name,
+        c.reltuples::bigint AS row_estimate,
+        pg_total_relation_size(c.oid) AS total_bytes
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r'
+      ORDER BY total_bytes DESC LIMIT 6
+    `);
+    dbUsage.tableStats = tStats.rows.map((r) => ({
+      name: r.table_name,
+      rows: Math.max(0, parseInt(r.row_estimate, 10) || 0),
+      sizeKB: (parseInt(r.total_bytes, 10) / 1024).toFixed(1)
+    }));
+  } catch (errDbSize) {
+    console.warn('[DB Usage Query Non-Fatal]', errDbSize.message);
+  }
+
   return createResponse(
     true,
     {
@@ -1144,7 +1184,8 @@ async function getAdminDashboardData() {
       lulus,
       tidakLulus: hasil.length - lulus,
       distribusi,
-      recentLogs: logRes.rows
+      recentLogs: logRes.rows,
+      dbUsage
     },
     'OK'
   );

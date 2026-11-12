@@ -684,6 +684,38 @@
       <div class="page-header"><div><h2 data-i18n="hAdminDashboard">Admin Dashboard — Pusat Layanan Bahasa</h2><p data-i18n="pAdminDashboard">Ringkasan operasional sistem CBT secara real-time.</p></div></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:16px;margin-bottom:20px;" id="adminStatCards"></div>
       
+      <!-- Widget Monitoring Kuota & Penyimpanan Database PostgreSQL (Neon / Vercel Free Tier) -->
+      <div class="db-quota-card" id="dbQuotaWidget">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.12);color:#10B981;display:flex;align-items:center;justify-content:center;font-size:18px;">
+              <i class="bi bi-database-check"></i>
+            </div>
+            <div>
+              <div style="font-size:14.5px;font-weight:700;font-family:'Poppins';">Status Database & Kuota Free Tier (Vercel / Neon)</div>
+              <div style="font-size:12px;color:var(--text-muted);">Monitoring kapasitas penyimpanan PostgreSQL relasional aktif secara real-time.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="badge-pill badge-success" id="dbStatusBadge"><span class="dot"></span>Optimal (&lt;70%)</span>
+            <button type="button" class="btn-cbt btn-cbt-ghost" style="padding:6px 12px;font-size:12px;" onclick="loadAdminDashboard()"><i class="bi bi-arrow-clockwise"></i> Segarkan</button>
+          </div>
+        </div>
+
+        <div class="quota-meter-bar">
+          <div class="quota-meter-fill" id="dbQuotaMeterFill" style="width: 0.2%;"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+          <span>Penyimpanan Terpakai: <strong style="color:var(--text-heading);" id="dbUsedStorage">0.00 MB</strong> / <strong>512 MB</strong> (Batas Gratis Neon/Vercel)</span>
+          <span>Penggunaan: <strong style="color:var(--primary);" id="dbPercentUsed">0.0%</strong></span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;background:var(--bg-canvas);padding:12px;border-radius:var(--radius-input);border:1px solid var(--border-color);" id="dbTableStatsMini">
+          <div style="font-size:11.5px;color:var(--text-muted);">Memuat metrik tabel...</div>
+        </div>
+      </div>
+      
       <!-- Main Analytics & Feed Grid -->
       <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:18px;" class="dashboard-main-grid">
         
@@ -1008,6 +1040,25 @@
 <!-- MODALS (shared) -->
 <!-- ============================================================ -->
 
+<!-- Modal Anti-Cheat Focus Guard -->
+<div class="cheat-guard-overlay" id="modalCheatGuard" style="display:none;">
+  <div class="cheat-guard-box">
+    <div style="width:54px;height:54px;border-radius:50%;background:rgba(239,68,68,0.15);color:var(--danger);font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;">
+      <i class="bi bi-shield-exclamation"></i>
+    </div>
+    <h3 style="font-size:18px;font-family:'Poppins';font-weight:700;color:var(--danger);margin:0 0 8px 0;">Peringatan Pengawasan Ujian!</h3>
+    <p style="font-size:13.5px;color:var(--text-heading);line-height:1.6;margin:0 0 14px 0;">
+      Anda terdeteksi <strong>berpindah tab atau meninggalkan jendela ujian</strong>. Seluruh aktivitas ini dicatat ke log pengawasan pengawas.
+    </p>
+    <div style="background:var(--bg-canvas);border:1px solid var(--border-color);border-radius:var(--radius-input);padding:10px 14px;font-size:13px;margin-bottom:18px;">
+      Pelanggaran ke: <strong id="cheatViolationCount" style="color:var(--danger);font-size:15px;">1</strong> / <span id="cheatMaxTolerance">3</span> kali toleransi
+    </div>
+    <button type="button" class="btn-cbt btn-cbt-primary" style="width:100%;justify-content:center;padding:12px;" onclick="closeCheatWarningModal()">
+      <i class="bi bi-arrow-return-left"></i> Saya Mengerti & Kembali Ujian
+    </button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalAddLecturer">
   <div class="modal-cbt">
     <div class="modal-header-cbt"><span><i class="bi bi-person-plus"></i> Tambah Akun Dosen Penguji</span>
@@ -1085,19 +1136,26 @@
 
 <div class="modal-overlay" id="modalPrintCodes">
   <div class="modal-cbt">
-    <div class="modal-header-cbt"><span><i class="bi bi-printer"></i> Cetak / Unduh Kode Akses</span>
+    <div class="modal-header-cbt"><span><i class="bi bi-printer"></i> Cetak / Distribusi Kode Akses</span>
       <button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalPrintCodes')">&times;</button></div>
     <div class="modal-body-cbt">
-      <label class="field-label">Pilih Ujian</label>
+      <label class="field-label">Pilih Paket Ujian</label>
       <select id="printCodesExamSelect" class="input-cbt">
-        <option value="">Semua Ujian (semua kode akses)</option>
+        <option value="">Semua Ujian (Seluruh Kode Akses)</option>
       </select>
-      <div class="field-help">Kode akses akan disusun sebagai kartu siap cetak/potong, agar bisa langsung dibagikan ke peserta tanpa mengirim satu per satu.</div>
+      <div style="height:12px;"></div>
+      <label class="field-label">Format Cetak / Keluaran</label>
+      <select id="printCodesFormatSelect" class="input-cbt">
+        <option value="a4">Kartu Kertas A4 (Grid Potong 3 Kolom)</option>
+        <option value="thermal">Struk Mini Thermal POS (80mm / 58mm)</option>
+      </select>
+      <div class="field-help" style="margin-top:8px;">Pilih format keluaran kartu ujian atau gunakan tombol salin pesan broadcast WhatsApp di bawah untuk pengiriman massal ke peserta.</div>
     </div>
-    <div class="modal-footer-cbt">
+    <div class="modal-footer-cbt" style="flex-wrap:wrap;gap:8px;">
       <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalPrintCodes')">Batal</button>
+      <button class="btn-cbt btn-cbt-outline" onclick="copyWhatsAppBroadcastText()"><i class="bi bi-whatsapp"></i> Salin Teks WA</button>
       <button class="btn-cbt btn-cbt-outline" onclick="downloadAccessCodesCsv()"><i class="bi bi-file-earmark-spreadsheet"></i> Unduh CSV</button>
-      <button class="btn-cbt btn-cbt-primary" onclick="printAccessCodes()"><i class="bi bi-printer"></i> Cetak Kartu Kode</button>
+      <button class="btn-cbt btn-cbt-primary" onclick="printAccessCodes()"><i class="bi bi-printer"></i> Cetak Kartu</button>
     </div>
   </div>
 </div>
