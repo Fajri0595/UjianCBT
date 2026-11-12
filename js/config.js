@@ -1,10 +1,11 @@
 // ============================================================
-// KONFIGURASI — CBT Bahasa
+// KONFIGURASI — CBT Bahasa (Vercel Serverless & PostgreSQL)
 // ============================================================
-// Ganti URL di bawah dengan URL /exec hasil Deploy Google Apps
-// Script Anda (lihat PANDUAN-INSTALASI.md bagian "Backend").
+// Di Vercel, seluruh API serverless berjalan otomatis pada endpoint
+// relatif '/api/cbt' tanpa perlu konfigurasi URL eksternal manual.
 //
-// Contoh format yang benar:
-// const GAS_URL = 'https://script.google.com/macros/s/AKfycbx.../exec';
+// Jika aplikasi frontend ini di-deploy di GitHub Pages atau domain
+// terpisah, isi nilai di bawah dengan URL penuh deployment Vercel Anda, misal:
+// const GAS_URL = 'https://nama-project-anda.vercel.app/api/cbt';
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyzxEBxi3Hb5qznR-pQxeIKhU0Zh1am0SX74PeLUhVPYjc8G6xmXBsLkLT9DKPEEceCiA/exec';
+const GAS_URL = window.CBT_API_URL || '/api/cbt';

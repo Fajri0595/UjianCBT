@@ -1,3 +1,19 @@
-# Folder backend Google Apps Script (tidak di-push ke GitHub Pages)
-Back/
+# Dependensi Node.js
+node_modules/
 
+# Environment Variables & Rahasia
+.env
+.env.local
+.env.*.local
+
+# Vercel Cache & Output
+.vercel/
+
+# Log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

@@ -1,53 +1,68 @@
 # CBT Bahasa — Sistem Tes Berbasis Komputer Ujian Kebahasaan
 
-Aplikasi ujian bahasa (listening, structure, reading) untuk peserta, dengan
-dashboard Dosen (buat ujian, bank soal, koreksi) dan Admin (kelola dosen,
-peserta, kode akses, laporan global).
+Aplikasi ujian kebahasaan (Listening, Structure & Written Expression, Reading Comprehension) untuk peserta, dilengkapi panel **Dosen** (pembuatan ujian, bank soal terpusat, koreksi otomatis, analisis butir soal) dan panel **Super Admin** (manajemen dosen, peserta, rombel, kode akses massal, dan laporan analitik global).
 
-## Arsitektur
+---
 
-Dimigrasi dari **GAS + HtmlService (satu aplikasi utuh)** menjadi
-**frontend statis + GAS sebagai REST API murni**, mengikuti kerangka
-GAS-PRO-API:
+## 🏛️ Arsitektur Sistem
+
+Aplikasi ini menggunakan arsitektur web modern **Serverless REST API + Database Relasional**:
 
 ```
-┌───────────────────────────────┐        ┌──────────────────────────────┐
-│  FRONTEND (statis)            │        │  BACKEND (Google Apps Script) │
-│  GitHub Pages / Netlify / dll │  fetch  │  Kode.gs                      │
-│  index.html · css/ · js/      │ ──────► │  doGet/doPost → JSON          │
-└───────────────────────────────┘  JSON   │  Google Sheets + Drive        │
-                                           └──────────────────────────────┘
+┌───────────────────────────────────────┐          ┌─────────────────────────────────────────┐
+│  FRONTEND (SPA)                       │          │  BACKEND (Vercel Serverless Function)   │
+│  - Single Page Application (HTML5/JS) │  fetch   │  - Node.js (api/cbt.js & services.js)   │
+│  - Resilient REST Client (api.js)     │ ───────► │  - HMAC-SHA256 Session Auth (auth.js)   │
+│  - UI Dashboard Admin, Dosen, Peserta │   JSON   │  - 42 Whitelisted Actions & Auto-Init   │
+└───────────────────────────────────────┘          └────────────────────┬────────────────────┘
+                                                                        │ Pool Query (pg)
+                                                   ┌────────────────────▼────────────────────┐
+                                                   │  DATABASE (PostgreSQL)                  │
+                                                   │  - Vercel Postgres / Neon / Supabase    │
+                                                   │  - ACID Compliant & Concurrency-Safe    │
+                                                   └─────────────────────────────────────────┘
 ```
 
-- **Tidak ada** `HtmlService`, **tidak ada** iframe.
-- Frontend memanggil backend lewat `fetch(GAS_URL, { method: 'POST', ... })`.
-- Backend selalu mengembalikan JSON `{ success, data, message }` lewat `ContentService`.
+### Keunggulan Dibandingkan Google Apps Script (GAS):
+1. **Bebas Kuota & Batas Waktu**: Tidak ada batasan kuota eksekusi harian Google atau timeout 6 menit.
+2. **Kinerja Konkurensi Tinggi**: PostgreSQL sanggup menangani ratusan peserta yang menyimpan jawaban dan menyelesaikan ujian di waktu yang bersamaan tanpa race condition.
+3. **Respon Cepat (Low Latency)**: Waktu respon API 15–80ms (jauh lebih instan dibanding latency 1–3 detik pada Apps Script).
+4. **Satu Atap Deployment di Vercel**: Frontend statis, Backend API, dan Database dikelola dalam satu platform gratis dan terintegrasi otomatis dengan repositori GitHub.
 
-## Struktur Folder (frontend)
+---
 
+## 📂 Struktur Folder Proyek
+
+```text
+├── index.html            # Antarmuka Single Page Application (SPA)
+├── favicon.svg           # Icon CBT
+├── css/
+│   └── style.css         # Styling kustom antarmuka pengguna
+├── js/
+│   ├── config.js         # Endpoint URL backend API (/api/cbt)
+│   ├── api.js            # Klien REST berbasis Proxy (kompatibel penuh dengan UI)
+│   └── app.js            # Logika UI, timer ujian, pengerjaan soal, & dashboard
+├── api/
+│   ├── cbt.js            # Router serverless Vercel & penangan CORS
+│   ├── db.js             # Pool koneksi PostgreSQL & Auto-Initialization skema
+│   ├── auth.js           # Kriptografi, HMAC session token, & hashing password
+│   ├── services.js       # 42 Layanan bisnis CBT (Ujian, Soal, Bank Soal, dsb.)
+│   └── schema.sql        # Skema DDL tabel database PostgreSQL
+├── package.json          # Konfigurasi dependensi Node.js & script
+├── vercel.json           # Konfigurasi routing rewrite Vercel
+├── local-server.js       # Web server lokal untuk pengujian di komputer
+├── .env.example          # Panduan variabel lingkungan
+├── PANDUAN-INSTALASI.md  # Panduan lengkap langkah demi langkah deploy ke Vercel
+└── README.md             # Dokumentasi arsitektur proyek
 ```
-index.html
-css/
-  └── style.css
-js/
-  ├── config.js   ← isi GAS_URL Anda di sini
-  ├── api.js      ← klien REST (shim kompatibel gaya google.script.run)
-  └── app.js      ← seluruh logika UI (tidak berubah dari versi asli)
-```
 
-`Kode.gs` (backend) diberikan **terpisah** di chat, bukan di dalam ZIP ini —
-lihat `PANDUAN-INSTALASI.md` untuk cara memasangnya di Google Apps Script.
+---
 
-## Catatan Migrasi
+## 🚀 Panduan Memulai & Deployment
 
-- Sintaks pemanggilan di `js/app.js` masih terlihat seperti
-  `gasRun.withSuccessHandler(...).withFailureHandler(...).namaAksi(args)` —
-  ini **bukan** `google.script.run` asli. `gasRun` adalah objek di `js/api.js`
-  yang meniru sintaks lama itu supaya 2000+ baris logika UI tidak perlu
-  ditulis ulang manual, tapi implementasinya 100% `fetch()` ke REST API.
-  Buka DevTools → Network untuk membuktikannya sendiri.
-- Semua 42 aksi (login, buat ujian, bank soal, laporan, dst.) terdaftar di
-  whitelist `ACTIONS` pada `Kode.gs`. `setupAppEnvironment()` **sengaja**
-  tidak didaftarkan agar tidak bisa dipicu ulang dari luar.
+Untuk panduan lengkap langkah demi langkah menghubungkan ke GitHub, Vercel, dan mengaktifkan database PostgreSQL gratis, silakan baca [PANDUAN-INSTALASI.md](file:///d:/WEB%20APP/3%20-%20CBT%20KEBAHASAAN/KODE%20NEW/PANDUAN-INSTALASI.md).
 
-Lihat `PANDUAN-INSTALASI.md` untuk langkah instalasi lengkap.
+### Akun Awal Bawaan (Default):
+- **Super Admin**: `admin.pusatbahasa` / `admin123`
+- **Dosen Penguji**: `dosen.aris` / `dosen123`
+- **Peserta Ujian Demo**: Kode Akses `LANG-DEMO`

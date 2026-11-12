@@ -1,0 +1,29 @@
+{
+  "name": "cbt-bahasa",
+  "version": "5.0.0",
+  "description": "CBT Bahasa — Sistem Tes Berbasis Komputer Ujian Kebahasaan (Vercel Serverless & PostgreSQL)",
+  "main": "api/cbt.js",
+  "scripts": {
+    "start": "node local-server.js",
+    "test": "node test-db.js"
+  },
+  "keywords": [
+    "cbt",
+    "exam",
+    "toefl",
+    "vercel",
+    "postgresql",
+    "serverless"
+  ],
+  "dependencies": {
+    "@vercel/blob": "^0.27.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

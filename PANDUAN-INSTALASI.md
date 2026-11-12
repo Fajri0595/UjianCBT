@@ -1,95 +1,139 @@
-# 📋 PANDUAN INSTALASI — CBT Bahasa (GAS-PRO-API)
+# 📋 PANDUAN DEPLOY & INSTALASI — CBT Bahasa
+## Arsitektur: Vercel Serverless + PostgreSQL + SPA Modern
 
-Aplikasi ini sudah dimigrasi dari arsitektur GAS+HtmlService (satu aplikasi utuh
-di Apps Script) menjadi **dua bagian terpisah**:
-
-- **Backend** — Google Apps Script (`Kode.gs`), sekarang murni REST API JSON (bukan lagi merender halaman HTML).
-- **Frontend** — situs statis (`index.html`, `css/`, `js/`) yang bisa di-hosting di GitHub Pages, memanggil backend lewat `fetch()`.
-
-Tidak ada lagi iframe, tidak ada `google.script.run` asli, tidak ada `HtmlService`.
-
----
-
-## Bagian 1 — Setup Backend (Google Apps Script)
-
-1. Buka https://script.google.com → **Proyek Baru**.
-2. Hapus isi `Code.gs` default, lalu paste seluruh isi `Kode.gs` yang diberikan terpisah di chat (bukan yang di dalam ZIP ini).
-3. **Jalankan `setupAppEnvironment()` — HANYA SEKALI:**
-   - Di dropdown daftar fungsi (toolbar atas editor), pilih `setupAppEnvironment` → klik ▶ **Run**.
-   - Klik **Review permissions** → izinkan akses Google Drive & Sheets.
-   - Buka **Execution Log** (View → Logs), pastikan muncul `✅ Setup selesai!` beserta ID spreadsheet.
-   - Cek Google Drive: folder **CBT_Bahasa_Data** sudah terbuat, berisi spreadsheet `DB_CBT_Bahasa` dan folder `CBT_Audio`.
-   - ⚠️ **JANGAN jalankan `setupAppEnvironment()` lebih dari sekali** — akan membuat folder/spreadsheet duplikat. Fungsi ini sengaja **tidak** bisa dipanggil dari frontend, hanya dari editor Apps Script.
-   - Login default yang dibuat: **Admin** `admin.pusatbahasa` / `admin123`, **Dosen** `dosen.aris` / `dosen123`. Segera ganti password lewat menu masing-masing setelah login pertama.
-4. **Deploy sebagai Web App:**
-   - Klik **Deploy** → **New deployment**.
-   - Klik ikon gerigi di "Select type" → pilih **Web app**.
-   - **Execute as:** Me (akun Anda)
-   - **Who has access:** Anyone
-   - Klik **Deploy** → salin **URL** yang diakhiri `/exec`.
-5. Setiap kali Anda mengedit `Kode.gs` di kemudian hari, ulangi langkah 4 dengan **Manage deployments → Edit (ikon pensil) → New version**, supaya perubahan benar-benar aktif di URL yang sama.
+Aplikasi **CBT Bahasa (Computer-Based Test Kebahasaan)** ini telah ditingkatkan menjadi arsitektur web modern standar industri:
+- **Frontend**: Single Page Application (HTML5, Tailwind/CSS kustom, Vanilla JS) yang cepat, responsif, dan ringan.
+- **Backend API**: Node.js Serverless Function di Vercel (`/api/cbt`), menghilangkan batasan waktu eksekusi dan kuota Google Apps Script.
+- **Database**: PostgreSQL Relasional (Vercel Postgres, Neon.tech, atau Supabase) yang tahan beban konkurensi ratusan peserta ujian secara simultan tanpa race condition.
+- **Media Audio**: Dukungan streaming langsung dan integrasi Vercel Blob / Object Storage.
 
 ---
 
-## Bagian 2 — Konfigurasi Frontend
+## 🚀 Tahap 1: Persiapan Repository GitHub
 
-1. Buka file `js/config.js` di folder hasil ekstrak ZIP ini.
-2. Ganti nilai `GAS_URL` dengan URL `/exec` dari langkah 4 di atas:
-   ```js
-   const GAS_URL = 'https://script.google.com/macros/s/AKfycb.../exec';
+1. Pastikan seluruh file di folder ini sudah rapi. Struktur folder proyek Anda adalah:
+   ```text
+   ├── index.html            (Frontend Utama)
+   ├── favicon.svg           (Icon CBT)
+   ├── css/                  (Style & Antarmuka)
+   ├── js/
+   │   ├── config.js         (Konfigurasi endpoint API)
+   │   ├── api.js            (Client REST Proxy)
+   │   └── app.js            (Seluruh logika UI & Ujian)
+   ├── api/
+   │   ├── cbt.js            (Router Serverless Vercel)
+   │   ├── db.js             (Koneksi & Auto-Init PostgreSQL)
+   │   ├── auth.js           (HMAC Token & Password Hashing)
+   │   ├── services.js       (42 Logika Bisnis CBT)
+   │   └── schema.sql        (DDL Skema Database)
+   ├── package.json          (Dependensi Node.js)
+   ├── vercel.json           (Konfigurasi Routing Vercel)
+   └── .env.example          (Panduan Environment Variable)
    ```
-3. Simpan file.
+
+2. Buat repositori baru di akun [GitHub](https://github.com) Anda (misalnya: `cbt-bahasa`).
+3. Push folder proyek ini ke repositori GitHub:
+   ```bash
+   git add .
+   git commit -m "feat: migrate to Vercel Serverless and PostgreSQL"
+   git branch -M main
+   git remote add origin https://github.com/Fajri0595/UjianCBT.git
+   git push -u origin main
+   ```
 
 ---
 
-## Bagian 3 — Deploy Frontend ke GitHub Pages
+## 🗄️ Tahap 2: Menghubungkan ke Vercel & Membuat Database PostgreSQL
 
-Folder hasil ekstraksi ZIP ini (yang berisi `index.html` di root, `css/`, `js/`)
-**ADALAH** folder proyek yang akan di-`git init` — jangan buat folder pembungkus
-tambahan, jangan naik satu level.
+### Opsi A: Menggunakan Vercel Postgres (Paling Praktis / 1 Akun untuk Semua)
 
-Struktur yang benar:
-```
-(folder hasil ekstrak ZIP)/
-├── index.html      ← harus terlihat langsung di sini
-├── README.md
-├── PANDUAN-INSTALASI.md   ← file ini
-├── css/
-│   └── style.css
-└── js/
-    ├── config.js   ← sudah diisi GAS_URL
-    ├── api.js
-    └── app.js
-```
-
-Langkah lengkap (Git, akun GitHub, push, aktifkan Pages) akan dipandu
-**langkah-demi-langkah lewat chat** — cukup lanjutkan percakapan dan beri tahu
-sistem operasi Anda (Windows/Mac/Linux). Ringkasannya:
-
-1. Install Git (jika belum ada) & buat akun GitHub.
-2. `git init` → `git add .` → `git commit` di folder ini.
-3. Buat repository baru (Public) di GitHub, sambungkan dengan `git remote add origin ...`.
-4. `git push -u origin main`.
-5. Di repo GitHub: **Settings → Pages** → Source: *Deploy from a branch*, Branch: `main` / `(root)`.
-6. Situs online di `https://USERNAME.github.io/NAMA-REPO/`.
+1. Buka [Vercel Dashboard](https://vercel.com) dan login dengan akun GitHub Anda.
+2. Klik tombol **"Add New..."** lalu pilih **Project**.
+3. Import repositori GitHub `cbt-bahasa` yang baru saja Anda push.
+4. Klik **Deploy** (biarkan pengaturan build default).
+5. Setelah selesai deploy pertama kali:
+   - Masuk ke dashboard proyek Anda di Vercel.
+   - Klik tab **Storage** pada menu navigasi atas.
+   - Klik **Create Database** → Pilih **Postgres** (Neon-powered) → Klik **Continue**.
+   - Beri nama database (misal: `cbt-db`), pilih Region terdekat (misal: **Singapore - sin1**).
+   - Klik **Create**.
+6. Hubungkan Database ke Proyek:
+   - Di halaman database tersebut, klik tab **Project Connections**.
+   - Pilih proyek `cbt-bahasa` Anda dan klik **Connect**.
+   - Vercel akan **secara otomatis mengisi variabel `POSTGRES_URL`** ke Environment Variables proyek Anda!
+7. Redeploy:
+   - Masuk ke tab **Deployments** di proyek Anda → klik titik tiga `...` pada deployment teratas → pilih **Redeploy**.
 
 ---
 
-## Uji Coba
+### Opsi B: Menggunakan Neon.tech atau Supabase (Alternatif Gratis)
 
-1. Buka URL GitHub Pages Anda.
-2. Coba login sebagai Admin/Dosen, atau masuk sebagai peserta dengan kode akses demo.
-3. Buka Chrome DevTools (F12) → tab **Network** → pastikan request ke `GAS_URL` berstatus `200`, bukan error CORS.
-4. Kalau ada masalah koneksi, buka menu **Diagnostik Sistem** di dashboard Admin (memanggil `runDiagnostics`) untuk memeriksa struktur database.
+Jika Anda ingin menggunakan database cloud PostgreSQL gratis dari Neon atau Supabase:
+1. Daftar gratis di [neon.tech](https://neon.tech) atau [supabase.com](https://supabase.com).
+2. Buat project baru dan salin **Connection String URI** PostgreSQL Anda, contoh:
+   ```text
+   postgres://username:password@ep-sample-123.ap-southeast-1.neon.tech/neondb?sslmode=require
+   ```
+3. Di Vercel Dashboard proyek Anda:
+   - Buka **Settings** → **Environment Variables**.
+   - Tambahkan variabel baru:
+     - **Key**: `POSTGRES_URL`
+     - **Value**: *(Paste Connection String URI Anda)*
+   - Tambahkan juga:
+     - **Key**: `CBT_API_SECRET`
+     - **Value**: *(Masukkan teks acak 32+ karakter untuk keamanan token)*
+   - Klik **Save**, lalu lakukan **Redeploy**.
 
 ---
 
-## Troubleshooting Cepat
+## ⚡ Tahap 3: Inisialisasi Database (Otomatis & Tanpa Pusing)
 
-| Gejala | Kemungkinan Sebab | Solusi |
-|---|---|---|
-| Semua request gagal, toast "Koneksi Terputus" | `GAS_URL` di `js/config.js` belum diisi / salah | Cek ulang URL `/exec`, pastikan tanpa spasi tambahan |
-| Data tidak muncul, tapi tidak ada error jelas | Web App belum di-deploy versi terbaru | Apps Script → Deploy → Manage deployments → New version |
-| Error CORS di Console | Header `Content-Type` POST bukan `text/plain` | Sudah ditangani otomatis oleh `js/api.js` — jangan diubah |
-| Halaman tampil tanpa styling | Struktur folder `css/`/`js/` rusak saat push | Lihat panduan deploy GitHub Pages di chat, bagian "Prosedur Perbaikan" |
-| "Aplikasi belum di-setup" | `setupAppEnvironment()` belum pernah dijalankan | Jalankan sekali dari editor Apps Script (Bagian 1, langkah 3) |
+Backend ini sudah dilengkapi fitur **Self-Healing & Auto-Initialization**:
+1. Saat aplikasi pertama kali dijalankan, sistem akan **secara otomatis membuat seluruh tabel** (`peserta`, `dosen`, `admin`, `ujian`, `soal`, `bank_soal`, `hasil_ujian`, `log_aktivitas`, `pengaturan_sistem`) jika belum ada.
+2. Akun bawaan (default) yang langsung aktif dan siap digunakan:
+   - 🛡️ **Super Admin**:
+     - Username: `admin.pusatbahasa`
+     - Password: `admin123`
+   - 👨‍🏫 **Dosen Penguji**:
+     - Username: `dosen.aris`
+     - Password: `dosen123`
+   - 🎓 **Peserta Ujian Uji Coba**:
+     - Kode Akses: `LANG-DEMO`
+     - Nama: Contoh Peserta
+
+> 💡 **Tips Keamanan**: Setelah berhasil login pertama kali sebagai Admin atau Dosen, segera ganti password default tersebut melalui menu pengaturan akun!
+
+---
+
+## 🔍 Tahap 4: Verifikasi & Diagnostik Sistem
+
+1. Buka URL deployment Vercel Anda di browser:
+   `https://nama-project-anda.vercel.app/api/cbt`
+   - Jika berhasil terhubung, halaman akan menampilkan status:
+     ```json
+     {
+       "success": true,
+       "message": "CBT Bahasa REST API (Vercel Serverless & PostgreSQL) berjalan normal.",
+       "version": "v5.0-vercel-pro"
+     }
+     ```
+2. Buka aplikasi web utama di `https://nama-project-anda.vercel.app`:
+   - Login sebagai **Admin** (`admin.pusatbahasa` / `admin123`).
+   - Masuk ke menu **Pengaturan & Diagnostik**.
+   - Klik **Jalankan Diagnostik** untuk memastikan seluruh tabel database berstatus hijau (OK).
+
+---
+
+## 💻 Menjalankan di Komputer Lokal (Opsional)
+
+Jika Anda ingin menguji atau mengembangkan aplikasi di laptop/komputer:
+1. Buat file `.env.local` di folder proyek, isi dengan:
+   ```env
+   POSTGRES_URL="postgres://username:password@host-db-anda/dbname?sslmode=require"
+   CBT_API_SECRET="kunci_rahasia_lokal_12345"
+   ```
+2. Jalankan perintah di terminal:
+   ```bash
+   npm start
+   ```
+3. Buka browser di `http://localhost:3000`. Aplikasi dan API lokal langsung siap digunakan!

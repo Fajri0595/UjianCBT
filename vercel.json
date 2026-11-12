@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/cbt", "destination": "/api/cbt.js" },
+    { "source": "/api/handler", "destination": "/api/cbt.js" }
+  ]
+}
+
