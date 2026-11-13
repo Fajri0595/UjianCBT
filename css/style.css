@@ -10,6 +10,9 @@
       --primary: #0F766E;
       --primary-dark: #00504A;
       --primary-light: #CCFBF1;
+      --primary-50: #F0FDFA;
+      --primary-100: #99F6E4;
+      --teal: #0D9488;
       --accent: #F59E0B;
       --accent-hover: #D97706;
       --coral: #FB7185;
@@ -19,6 +22,9 @@
       --bg-canvas: #F8FAFC;
       --bg-card: #FFFFFF;
       --text-primary: #0F172A;
+      --text-heading: #0F172A;
+      --text-main: #1E293B;
+      --text-secondary: #334155;
       --text-muted: #64748B;
       --border-color: #E2E8F0;
     
@@ -36,6 +42,7 @@
       --radius-input: 8px;
       --radius-pill: 9999px;
     
+      --shadow-sm: 0 1px 2px rgba(15,23,42,0.05);
       --shadow-rest: 0 1px 3px rgba(15,23,42,0.04), 0 4px 12px rgba(15,118,110,0.06);
       --shadow-hover: 0 10px 25px -5px rgba(15,118,110,0.12), 0 8px 10px -6px rgba(15,118,110,0.04);
       --shadow-cta: 0 4px 14px rgba(245,158,11,0.35);
@@ -47,18 +54,53 @@
     }
     
     [data-theme="dark"] {
+      --primary: #14B8A6;
+      --primary-dark: #5EEAD4;
+      --primary-light: rgba(20, 184, 166, 0.16);
+      --primary-50: rgba(20, 184, 166, 0.12);
+      --primary-100: rgba(45, 212, 191, 0.28);
+      --teal: #2DD4BF;
+      --coral-bg: rgba(251, 113, 133, 0.16);
       --bg-canvas: #0B1220;
       --bg-card: #101A2C;
-      --text-primary: #E5EDF5;
+      --text-primary: #F1F5F9;
+      --text-heading: #FFFFFF;
+      --text-main: #E2E8F0;
+      --text-secondary: #CBD5E1;
       --text-muted: #94A3B8;
       --border-color: #1F2B3E;
-      --primary-light: #113B37;
+      --success-bg: rgba(16, 185, 129, 0.16);
+      --success-text: #6EE7B7;
+      --warning-bg: rgba(245, 158, 11, 0.16);
+      --warning-text: #FCD34D;
+      --danger-bg: rgba(239, 68, 68, 0.16);
+      --danger-text: #FCA5A5;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.25);
       --shadow-rest: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.25);
       --shadow-hover: 0 10px 25px -5px rgba(0,0,0,0.35), 0 8px 10px -6px rgba(0,0,0,0.2);
       --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.3);
     }
     [data-theme="dark"] .sidebar-nav a.active { background: rgba(255,255,255,.14); }
     [data-theme="dark"] .skeleton { background: linear-gradient(90deg, #1F2B3E 25%, #263449 50%, #1F2B3E 75%); background-size: 200% 100%; }
+    [data-theme="dark"] .btn-cbt-teal { background: #0F766E; color: #FFFFFF; }
+    [data-theme="dark"] .btn-cbt-teal:hover { background: #0D9488; color: #FFFFFF; }
+    [data-theme="dark"] .btn-cbt-outline { background: rgba(20, 184, 166, 0.08); border-color: #2DD4BF; color: #5EEAD4; }
+    [data-theme="dark"] .btn-cbt-outline:hover { background: rgba(20, 184, 166, 0.20); color: #FFFFFF; }
+    [data-theme="dark"] .badge-neutral { background: rgba(148, 163, 184, 0.16); color: #E2E8F0; }
+    [data-theme="dark"] .badge-neutral .dot { background: #CBD5E1; }
+    [data-theme="dark"] .badge-indigo { background: rgba(99, 102, 241, 0.20); color: #A5B4FC; }
+    [data-theme="dark"] .icon-bg-amber { background: rgba(245, 158, 11, 0.18); color: #FBBF24; }
+    [data-theme="dark"] .icon-bg-indigo { background: rgba(99, 102, 241, 0.20); color: #818CF8; }
+    [data-theme="dark"] .icon-bg-teal { background: rgba(20, 184, 166, 0.18); color: #2DD4BF; }
+    [data-theme="dark"] .feed-icon-success, [data-theme="dark"] .badge-feed-success { background: rgba(16, 185, 129, 0.18); color: #6EE7B7; }
+    [data-theme="dark"] .feed-icon-info, [data-theme="dark"] .badge-feed-info { background: rgba(99, 102, 241, 0.20); color: #A5B4FC; }
+    [data-theme="dark"] .feed-icon-warning, [data-theme="dark"] .badge-feed-warning { background: rgba(245, 158, 11, 0.18); color: #FCD34D; }
+    [data-theme="dark"] .feed-icon-purple, [data-theme="dark"] .badge-feed-purple { background: rgba(168, 85, 247, 0.20); color: #D8B4FE; }
+    [data-theme="dark"] .feed-icon-neutral, [data-theme="dark"] .badge-feed-neutral { background: rgba(148, 163, 184, 0.16); color: #CBD5E1; }
+    [data-theme="dark"] .rank-gold { background: rgba(245, 158, 11, 0.20); color: #FCD34D; border-color: rgba(251, 191, 36, 0.45); }
+    [data-theme="dark"] .rank-silver { background: rgba(148, 163, 184, 0.20); color: #E2E8F0; border-color: rgba(203, 213, 225, 0.4); }
+    [data-theme="dark"] .rank-bronze { background: rgba(249, 115, 22, 0.20); color: #FDBA74; border-color: rgba(251, 146, 60, 0.45); }
+    [data-theme="dark"] .activity-feed-item:hover, [data-theme="dark"] .db-table-stat-item:hover { border-color: rgba(45, 212, 191, 0.45); }
     
     /* Cegah seleksi teks & copy pada area soal ujian, memperkuat proteksi anti-copy-paste */
     .exam-main, .passage-box, #questionText, .option-card, .q-nav-grid {

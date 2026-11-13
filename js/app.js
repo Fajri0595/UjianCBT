@@ -113,12 +113,73 @@
     // DARK MODE
     // ════════════════════════════════════════════════════════
     function getCurrentTheme() { return localStorage.getItem('cbt_theme') || 'light'; }
+
+    function getChartThemeColors() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return {
+        isDark,
+        textHeading: isDark ? '#F8FAFC' : '#0F172A',
+        tickPrimary: isDark ? '#E2E8F0' : '#334155',
+        tickSecondary: isDark ? '#94A3B8' : '#64748B',
+        gridColor: isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(226, 232, 240, 0.7)',
+        cardBorder: isDark ? '#101A2C' : '#ffffff',
+        emptyRing: isDark ? '#1F2B3E' : '#E2E8F0'
+      };
+    }
+
+    function refreshChartsTheme() {
+      if (!appState || !appState.chartInstances) return;
+      const tc = getChartThemeColors();
+
+      const dist = appState.chartInstances.distribusi;
+      if (dist && dist.options && dist.options.scales) {
+        if (dist.options.scales.x && dist.options.scales.x.ticks) dist.options.scales.x.ticks.color = tc.tickPrimary;
+        if (dist.options.scales.y) {
+          if (dist.options.scales.y.grid) dist.options.scales.y.grid.color = tc.gridColor;
+          if (dist.options.scales.y.ticks) dist.options.scales.y.ticks.color = tc.tickSecondary;
+        }
+        dist.update();
+      }
+
+      const kel = appState.chartInstances.kelulusan;
+      if (kel && kel.data && kel.data.datasets && kel.data.datasets[0]) {
+        const ds = kel.data.datasets[0];
+        ds.borderColor = tc.cardBorder;
+        if (Array.isArray(ds.data) && ds.data[0] === 0 && ds.data[1] === 1 && ds._isEmptyRing) {
+          ds.backgroundColor = [tc.emptyRing, tc.emptyRing];
+        }
+        kel.update();
+      }
+
+      const rombel = appState.chartInstances.rombel;
+      if (rombel && rombel.options && rombel.options.scales) {
+        if (rombel.options.scales.x && rombel.options.scales.x.ticks) rombel.options.scales.x.ticks.color = tc.tickPrimary;
+        if (rombel.options.scales.y) {
+          if (rombel.options.scales.y.grid) rombel.options.scales.y.grid.color = tc.gridColor;
+          if (rombel.options.scales.y.ticks) rombel.options.scales.y.ticks.color = tc.tickSecondary;
+        }
+        rombel.update();
+      }
+
+      const rombelLulus = appState.chartInstances.rombelLulus;
+      if (rombelLulus && rombelLulus.options && rombelLulus.options.scales) {
+        if (rombelLulus.options.scales.x) {
+          if (rombelLulus.options.scales.x.grid) rombelLulus.options.scales.x.grid.color = tc.gridColor;
+          if (rombelLulus.options.scales.x.ticks) rombelLulus.options.scales.x.ticks.color = tc.tickSecondary;
+        }
+        if (rombelLulus.options.scales.y && rombelLulus.options.scales.y.ticks) {
+          rombelLulus.options.scales.y.ticks.color = tc.tickPrimary;
+        }
+        rombelLulus.update();
+      }
+    }
     
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       document.querySelectorAll('[id^="themeToggleIcon"]').forEach(el => {
         el.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
       });
+      refreshChartsTheme();
     }
     
     function toggleTheme() {
@@ -975,7 +1036,7 @@
         if (txt) txt.textContent = 'Ditandai Ragu';
       } else {
         btn.style.background = 'var(--warning-bg)';
-        btn.style.color = '#B45309';
+        btn.style.color = 'var(--warning-text)';
         btn.style.borderColor = 'var(--accent)';
         if (icon) icon.className = 'bi bi-flag';
         if (txt) txt.textContent = 'Ragu-ragu';
@@ -1938,6 +1999,7 @@
 
       // Warna bertingkat CEFR: Merah (Elem), Kuning (Low-Int), Gold (Int), Teal (High-Int), Biru (Adv), Violet (Prof)
       const colors = ['#F43F5E', '#F59E0B', '#EAB308', '#0D9488', '#2563EB', '#7C3AED'];
+      const tc = getChartThemeColors();
 
       appState.chartInstances.distribusi = new Chart(ctx, {
         type: 'bar',
@@ -1977,17 +2039,17 @@
             x: {
               grid: { display: false },
               ticks: {
-                color: '#334155',
+                color: tc.tickPrimary,
                 font: { family: 'Inter', size: 10.5, weight: '600' }
               }
             },
             y: {
               beginAtZero: true,
-              grid: { color: 'rgba(226, 232, 240, 0.7)' },
+              grid: { color: tc.gridColor },
               ticks: {
                 stepSize: 1,
                 precision: 0,
-                color: '#64748B',
+                color: tc.tickSecondary,
                 font: { family: 'Inter', size: 11 }
               }
             }
@@ -2008,8 +2070,9 @@
       const total = lCount + tlCount;
       const pctStr = total > 0 ? ((lCount / total) * 100).toFixed(1) : (tingkatKelulusan !== undefined ? String(tingkatKelulusan) : '0.0');
 
+      const tc = getChartThemeColors();
       const chartData = total > 0 ? [lCount, tlCount] : [0, 1];
-      const chartColors = total > 0 ? ['#10B981', '#F43F5E'] : ['#E2E8F0', '#E2E8F0'];
+      const chartColors = total > 0 ? ['#10B981', '#F43F5E'] : [tc.emptyRing, tc.emptyRing];
 
       appState.chartInstances.kelulusan = new Chart(ctx, {
         type: 'doughnut',
@@ -2019,8 +2082,9 @@
             data: chartData,
             backgroundColor: chartColors,
             borderWidth: 2,
-            borderColor: '#ffffff',
-            hoverOffset: 3
+            borderColor: tc.cardBorder,
+            hoverOffset: 3,
+            _isEmptyRing: total === 0
           }]
         },
         options: {
@@ -2050,15 +2114,16 @@
           id: 'centerTextKelulusan',
           beforeDraw: function(chart) {
             const { width, height, ctx } = chart;
+            const liveTc = getChartThemeColors();
             ctx.save();
             ctx.font = '700 19px Poppins, sans-serif';
-            ctx.fillStyle = '#0F172A';
+            ctx.fillStyle = liveTc.textHeading;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(pctStr + '%', width / 2, height / 2 - 5);
 
             ctx.font = '500 10.5px Inter, sans-serif';
-            ctx.fillStyle = '#64748B';
+            ctx.fillStyle = liveTc.tickSecondary;
             ctx.fillText('Lulus', width / 2, height / 2 + 13);
             ctx.restore();
           }
@@ -2069,17 +2134,17 @@
       const miniEl = document.getElementById('kelulusanMiniStats');
       if (miniEl) {
         miniEl.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 8px;background:rgba(16,185,129,0.08);border-radius:6px;">
-            <span style="color:#065F46;font-weight:600;display:flex;align-items:center;gap:5px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:6px 10px;background:var(--success-bg);border-radius:7px;">
+            <span style="color:var(--success-text);font-weight:600;display:flex;align-items:center;gap:6px;">
               <span style="width:7px;height:7px;border-radius:50%;background:#10B981;display:inline-block;"></span>Lulus
             </span>
-            <strong style="color:#065F46;">${lCount} Siswa</strong>
+            <strong style="color:var(--success-text);">${lCount} Siswa</strong>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 8px;background:rgba(244,63,94,0.08);border-radius:6px;">
-            <span style="color:#9F1239;font-weight:600;display:flex;align-items:center;gap:5px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:6px 10px;background:var(--danger-bg);border-radius:7px;">
+            <span style="color:var(--danger-text);font-weight:600;display:flex;align-items:center;gap:6px;">
               <span style="width:7px;height:7px;border-radius:50%;background:#F43F5E;display:inline-block;"></span>Belum Lulus
             </span>
-            <strong style="color:#9F1239;">${tlCount} Siswa</strong>
+            <strong style="color:var(--danger-text);">${tlCount} Siswa</strong>
           </div>`;
       }
     }
@@ -3917,7 +3982,7 @@
                 </td>
                 <td>
                   <div style="display:flex;align-items:center;gap:10px;">
-                    <div style="flex:1;background:rgba(226,232,240,0.8);border-radius:999px;height:8px;overflow:hidden;">
+                    <div style="flex:1;background:var(--border-color);border-radius:999px;height:8px;overflow:hidden;">
                       <div style="width:${Math.min(passingPct, 100)}%;background:${barColor};height:100%;border-radius:999px;transition:width .4s ease;"></div>
                     </div>
                     <span style="font-size:12px;font-weight:700;color:var(--text-heading);width:45px;text-align:right;">${passingPct}%</span>
@@ -3936,6 +4001,7 @@
     }
 
     function renderRombelDualCharts(labels, scores, passingRates) {
+      const tc = getChartThemeColors();
       // 1. Chart Rata-rata Skor per Rombel
       const ctxSkor = document.getElementById('chartRombelComparison');
       if (ctxSkor) {
@@ -3976,12 +4042,12 @@
             scales: {
               x: {
                 grid: { display: false },
-                ticks: { color: '#334155', font: { family: 'Inter', size: 11, weight: '600' } }
+                ticks: { color: tc.tickPrimary, font: { family: 'Inter', size: 11, weight: '600' } }
               },
               y: {
                 beginAtZero: true,
-                grid: { color: 'rgba(226, 232, 240, 0.7)' },
-                ticks: { color: '#64748B', font: { family: 'Inter', size: 11 } }
+                grid: { color: tc.gridColor },
+                ticks: { color: tc.tickSecondary, font: { family: 'Inter', size: 11 } }
               }
             }
           }
@@ -4027,16 +4093,16 @@
               x: {
                 min: 0,
                 max: 100,
-                grid: { color: 'rgba(226, 232, 240, 0.7)' },
+                grid: { color: tc.gridColor },
                 ticks: {
                   callback: val => val + '%',
-                  color: '#64748B',
+                  color: tc.tickSecondary,
                   font: { family: 'Inter', size: 10.5 }
                 }
               },
               y: {
                 grid: { display: false },
-                ticks: { color: '#334155', font: { family: 'Inter', size: 11, weight: '600' } }
+                ticks: { color: tc.tickPrimary, font: { family: 'Inter', size: 11, weight: '600' } }
               }
             }
           }
