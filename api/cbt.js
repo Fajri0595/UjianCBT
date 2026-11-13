@@ -67,7 +67,7 @@ const ACTION_PERMISSIONS = {
   getGlobalReport: 'ADMIN',
   getRombelComparison: 'ADMIN',
   getActivityLog: 'ADMIN',
-  getSystemSettings: 'ADMIN',
+  getSystemSettings: 'PUBLIC',
   saveSystemSettings: 'ADMIN',
   runDiagnostics: 'ADMIN'
 };

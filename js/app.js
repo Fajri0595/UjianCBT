@@ -146,12 +146,21 @@
         }
       }).getAppVersion();
       
-      // Muat konfigurasi pengaturan sistem yang tersimpan agar langsung aktif
+      // Muat konfigurasi pengaturan sistem & latar foto login yang tersimpan agar langsung aktif
       try {
+        const savedBg = localStorage.getItem('cbt_login_bg');
+        if (savedBg) applyLoginBackground(savedBg, false);
         const cachedSettings = localStorage.getItem('cbt_system_settings');
         if (cachedSettings) applyLoadedSettings(JSON.parse(cachedSettings));
       } catch(e){}
-    
+
+      // Sinkronkan pengaturan branding/latar login publik dari server
+      gasRun.withSuccessHandler(res => {
+        if (res && res.success && res.data) {
+          applyLoadedSettings(res.data);
+        }
+      }).getSystemSettings();
+
       // Pulihkan sesi dari localStorage agar refresh halaman tidak memaksa logout
       // (penting terutama untuk Admin/Dosen yang sedang memantau dashboard).
       restoreSession();
@@ -3128,16 +3137,181 @@
     }
     
     // ════════════════════════════════════════════════════════
-    // ADMIN — PENGATURAN SISTEM KOMPREHENSIF (5 MODUL)
+    // KUSTOMISASI FOTO LATAR BELAKANG LOGIN & PENGATURAN SISTEM
     // ════════════════════════════════════════════════════════
+    const DEFAULT_LOGIN_BG_URL = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=85';
+    const LOGIN_BG_PRESETS = [
+      {
+        id: 'campus_library',
+        label: 'Perpustakaan & Pusat Bahasa',
+        url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=85'
+      },
+      {
+        id: 'language_lab',
+        label: 'Laboratorium Multimedia',
+        url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=85'
+      },
+      {
+        id: 'university_hall',
+        label: 'Gedung Kampus Akademik',
+        url: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1920&q=85'
+      },
+      {
+        id: 'reading_archive',
+        label: 'Ruang Baca & Literatur',
+        url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1920&q=85'
+      },
+      {
+        id: 'academic_auditorium',
+        label: 'Auditorium & Uji Kompetensi',
+        url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=85'
+      }
+    ];
+
+    function applyLoginBackground(rawUrl, persistLocal = true) {
+      const cleanUrl = String(rawUrl || '').trim() || DEFAULT_LOGIN_BG_URL;
+      const safeCssUrl = cleanUrl.replace(/["'()\\]/g, '\\$&');
+      document.documentElement.style.setProperty('--auth-bg-image', `url("${safeCssUrl}")`);
+
+      const matchedPreset = LOGIN_BG_PRESETS.find(p => p.url === cleanUrl);
+      const captionLabel = matchedPreset
+        ? matchedPreset.label
+        : (cleanUrl.startsWith('data:image/') ? 'Foto Kampus Kustom' : 'Latar Institusi Kustom');
+
+      ['authBgCaption1', 'authBgCaption2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<i class="bi bi-camera"></i> ${escapeHtml(captionLabel)}`;
+      });
+
+      const settingInput = document.getElementById('settingLoginBgUrl');
+      if (settingInput && !cleanUrl.startsWith('data:image/')) {
+        settingInput.value = cleanUrl;
+      }
+
+      if (persistLocal) {
+        try { localStorage.setItem('cbt_login_bg', cleanUrl); } catch (e) {}
+      }
+    }
+
+    function renderLoginBgPresetGrid(activeUrl) {
+      const grid = document.getElementById('loginBgPresetGrid');
+      if (!grid) return;
+      const current = String(activeUrl || localStorage.getItem('cbt_login_bg') || DEFAULT_LOGIN_BG_URL).trim();
+      grid.innerHTML = LOGIN_BG_PRESETS.map(p => {
+        const isActive = p.url === current;
+        return `
+          <div class="login-bg-preset-card ${isActive ? 'active' : ''}"
+               style="background-image:url('${p.url}');"
+               onclick="selectLoginBgPreset('${p.id}')">
+            <div class="login-bg-preset-label">
+              <span>${escapeHtml(p.label)}</span>
+              ${isActive ? '<i class="bi bi-check-circle-fill" style="color:#34D399;"></i>' : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function openLoginBgModal() {
+      const currentUrl = localStorage.getItem('cbt_login_bg') ||
+                         (appState.systemSettings && appState.systemSettings.loginBgUrl) ||
+                         DEFAULT_LOGIN_BG_URL;
+      const urlInput = document.getElementById('customLoginBgUrlInput');
+      if (urlInput) {
+        urlInput.value = currentUrl.startsWith('data:image/') ? '' : currentUrl;
+      }
+      const statusEl = document.getElementById('loginBgUploadStatus');
+      if (statusEl) {
+        statusEl.textContent = currentUrl.startsWith('data:image/')
+          ? 'Menggunakan foto unggahan perangkat Anda.'
+          : 'Otomatis dioptimalkan agar ringan & tajam.';
+      }
+      renderLoginBgPresetGrid(currentUrl);
+      openModal('modalLoginBgPicker');
+    }
+
+    function selectLoginBgPreset(presetId) {
+      const preset = LOGIN_BG_PRESETS.find(p => p.id === presetId);
+      if (!preset) return;
+      const urlInput = document.getElementById('customLoginBgUrlInput');
+      if (urlInput) urlInput.value = preset.url;
+      applyLoginBackground(preset.url, true);
+      renderLoginBgPresetGrid(preset.url);
+    }
+
+    function handleLoginBgFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('loginBgUploadStatus');
+      if (statusEl) statusEl.textContent = 'Memproses & mengoptimalkan foto...';
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const maxW = 1600;
+          const scale = img.width > maxW ? (maxW / img.width) : 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+          applyLoginBackground(dataUrl, true);
+          const settingInput = document.getElementById('settingLoginBgUrl');
+          if (settingInput) settingInput.value = dataUrl;
+          const urlInput = document.getElementById('customLoginBgUrlInput');
+          if (urlInput) urlInput.value = '';
+          if (statusEl) statusEl.innerHTML = `<strong style="color:var(--success);"><i class="bi bi-check-circle"></i> Foto "${escapeHtml(file.name)}" siap diterapkan!</strong>`;
+          renderLoginBgPresetGrid(dataUrl);
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function applyCustomLoginBgModal() {
+      const urlInput = document.getElementById('customLoginBgUrlInput');
+      const customUrl = urlInput ? urlInput.value.trim() : '';
+      const targetUrl = customUrl || localStorage.getItem('cbt_login_bg') || DEFAULT_LOGIN_BG_URL;
+      applyLoginBackground(targetUrl, true);
+
+      const settingInput = document.getElementById('settingLoginBgUrl');
+      if (settingInput) settingInput.value = targetUrl;
+
+      // Jika sedang login sebagai Admin, simpan juga ke pengaturan server agar berlaku bagi seluruh peserta
+      if (appState.staff && appState.staff.role === 'admin') {
+        const merged = Object.assign({}, appState.systemSettings || {}, { loginBgUrl: targetUrl });
+        appState.systemSettings = merged;
+        gasRun.withSuccessHandler(() => {}).saveSystemSettings({ loginBgUrl: targetUrl });
+      }
+
+      closeModal('modalLoginBgPicker');
+      showToast('Latar Diperbarui', 'Foto latar belakang halaman login berhasil diterapkan.', 'success');
+    }
+
+    function resetLoginBgDefault() {
+      applyLoginBackground(DEFAULT_LOGIN_BG_URL, true);
+      const urlInput = document.getElementById('customLoginBgUrlInput');
+      if (urlInput) urlInput.value = DEFAULT_LOGIN_BG_URL;
+      const settingInput = document.getElementById('settingLoginBgUrl');
+      if (settingInput) settingInput.value = DEFAULT_LOGIN_BG_URL;
+      renderLoginBgPresetGrid(DEFAULT_LOGIN_BG_URL);
+      if (appState.staff && appState.staff.role === 'admin') {
+        gasRun.withSuccessHandler(() => {}).saveSystemSettings({ loginBgUrl: DEFAULT_LOGIN_BG_URL });
+      }
+      showToast('Default Dipulihkan', 'Latar belakang dikembalikan ke tema kampus bawaan.', 'info');
+    }
+
     function applyLoadedSettings(settings) {
       if (!settings) return;
       appState.systemSettings = settings;
       if (settings.institutionName) {
-        const brandEls = document.querySelectorAll('.app-sidebar .brand .name');
+        const brandEls = document.querySelectorAll('.app-sidebar .brand .name, [data-inst-name]');
         brandEls.forEach(el => el.textContent = settings.institutionName);
-        const subEls = document.querySelectorAll('#staffPortalLabel');
-        subEls.forEach(el => el.textContent = 'Portal ' + settings.institutionName);
+      }
+      if (settings.loginBgUrl) {
+        applyLoginBackground(settings.loginBgUrl, true);
       }
       if (settings.audioMaxPlays !== undefined) appState.audioMaxPlayLimit = Number(settings.audioMaxPlays) || 2;
       if (settings.cheatTolerance !== undefined) appState.maxCheatViolations = Number(settings.cheatTolerance);
@@ -3174,6 +3348,7 @@
       setVal('settingCertValidityDays', data.certValidityDays, 730);
       setVal('settingDirectorName', data.directorName, '');
       setVal('settingDirectorNIP', data.directorNIP, '');
+      setVal('settingLoginBgUrl', data.loginBgUrl, DEFAULT_LOGIN_BG_URL);
     }
 
     function loadSystemSettings() {
@@ -3219,7 +3394,8 @@
         institutionName: document.getElementById('settingInstitutionName').value.trim(),
         certValidityDays: document.getElementById('settingCertValidityDays').value,
         directorName: document.getElementById('settingDirectorName').value.trim(),
-        directorNIP: document.getElementById('settingDirectorNIP').value.trim()
+        directorNIP: document.getElementById('settingDirectorNIP').value.trim(),
+        loginBgUrl: (document.getElementById('settingLoginBgUrl') ? document.getElementById('settingLoginBgUrl').value.trim() : '') || DEFAULT_LOGIN_BG_URL
       };
 
       // Terapkan langsung ke lingkungan aplikasi aktif
