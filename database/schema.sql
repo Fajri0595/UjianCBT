@@ -16,22 +16,27 @@ CREATE TABLE IF NOT EXISTS peserta (
   "Device_Info" TEXT
 );
 
--- 2. Tabel Dosen Penguji
+-- 2. Tabel Dosen Penguji (Login Passwordless via Email Terdaftar)
 CREATE TABLE IF NOT EXISTS dosen (
   "ID_Dosen" VARCHAR(60) PRIMARY KEY,
   "Nama" VARCHAR(200) NOT NULL,
-  "Username" VARCHAR(100) UNIQUE NOT NULL,
-  "Password_Hash" VARCHAR(255) NOT NULL,
+  "Username" VARCHAR(100) UNIQUE,
+  "Email" VARCHAR(200),
+  "Password_Hash" VARCHAR(255) DEFAULT '',
   "Status" VARCHAR(30) DEFAULT 'Aktif'
 );
 
--- 3. Tabel Administrator
+-- 3. Tabel Administrator (Login Passwordless via Email Terdaftar)
 CREATE TABLE IF NOT EXISTS admin (
   "ID_Admin" VARCHAR(60) PRIMARY KEY,
   "Nama" VARCHAR(200) NOT NULL,
-  "Username" VARCHAR(100) UNIQUE NOT NULL,
-  "Password_Hash" VARCHAR(255) NOT NULL
+  "Username" VARCHAR(100) UNIQUE,
+  "Email" VARCHAR(200),
+  "Password_Hash" VARCHAR(255) DEFAULT ''
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dosen_email_lower ON dosen (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_email_lower ON admin (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
 
 -- 4. Tabel Paket Ujian
 CREATE TABLE IF NOT EXISTS ujian (

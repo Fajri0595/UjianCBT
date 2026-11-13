@@ -6,8 +6,6 @@
 
 const { query, queryOne } = require('../db');
 const {
-  hashPassword,
-  verifyPassword,
   generateSessionToken,
   generateId,
   generateAccessCode
@@ -79,57 +77,110 @@ async function verifyParticipantAccess(nama, kontak, kodeAkses, deviceInfo, exis
   return createResponse(true, participant, 'Kode akses terverifikasi.');
 }
 
-async function staffLogin(role, username, password) {
-  if (!username || !password) return createResponse(false, null, 'Username dan password wajib diisi.');
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function normalizeAndValidateEmail(rawEmail) {
+  const email = String(rawEmail || '').trim().toLowerCase();
+  if (!email) return { email: '', error: 'Alamat email wajib diisi.' };
+  if (!EMAIL_PATTERN.test(email)) return { email: '', error: 'Format alamat email tidak valid.' };
+  return { email, error: null };
+}
+
+async function isEmailRegistered(table, idCol, email, excludeId = null) {
+  if (excludeId) {
+    const existing = await queryOne(
+      `SELECT "${idCol}" FROM "${table}" WHERE LOWER(TRIM("Email")) = $1 AND "${idCol}" <> $2`,
+      [email, excludeId]
+    );
+    return Boolean(existing);
+  }
+  const existing = await queryOne(
+    `SELECT "${idCol}" FROM "${table}" WHERE LOWER(TRIM("Email")) = $1`,
+    [email]
+  );
+  return Boolean(existing);
+}
+
+/**
+ * Autentikasi Staf (Administrator / Dosen Penguji) tanpa password:
+ * hanya email yang sudah terdaftar (dan aktif untuk Dosen) yang dapat masuk.
+ */
+async function staffLogin(role, rawEmail) {
+  const { email, error } = normalizeAndValidateEmail(rawEmail);
+  if (error) return createResponse(false, null, error);
+
   const isRoleAdmin = String(role || '').toLowerCase() === 'admin';
   const table = isRoleAdmin ? 'admin' : 'dosen';
   const idCol = isRoleAdmin ? 'ID_Admin' : 'ID_Dosen';
+  const roleTitle = isRoleAdmin ? 'Administrator' : 'Dosen Penguji';
 
-  const user = await queryOne(`SELECT * FROM "${table}" WHERE "Username" = $1`, [username]);
-  if (!user || !verifyPassword(password, user.Password_Hash)) {
-    return createResponse(false, null, 'Username atau password salah.');
+  const user = await queryOne(
+    `SELECT * FROM "${table}" WHERE LOWER(TRIM("Email")) = $1`,
+    [email]
+  );
+  if (!user) {
+    return createResponse(false, null, `Email "${email}" tidak terdaftar sebagai ${roleTitle}. Hubungi Administrator.`);
   }
 
   if (!isRoleAdmin && user.Status !== 'Aktif') {
-    return createResponse(false, null, 'Akun dosen tidak aktif.');
-  }
-
-  // Auto-upgrade hash jika diperlukan
-  const newHash = hashPassword(password);
-  if (user.Password_Hash !== newHash) {
-    await query(`UPDATE "${table}" SET "Password_Hash" = $1 WHERE "${idCol}" = $2`, [newHash, user[idCol]]);
+    return createResponse(false, null, 'Akun dosen tidak aktif. Hubungi Administrator.');
   }
 
   delete user.Password_Hash;
+  user.Email = email;
   user.role = isRoleAdmin ? 'admin' : 'dosen';
   const userId = user[idCol];
   user.token = generateSessionToken(userId, user.role, user.Nama);
 
-  await logActivity(isRoleAdmin ? 'Administrator' : 'Dosen Penguji', user.Nama, 'Login Staff', username);
+  await logActivity(roleTitle, user.Nama, 'Login Staff (Email)', email);
   return createResponse(true, user, 'Login berhasil.');
 }
 
 
 // ────────────────────────────────────────────────────────────
 async function getAllLecturers() {
-  const { rows } = await query('SELECT "ID_Dosen", "Nama", "Username", "Status" FROM dosen ORDER BY "Nama" ASC');
+  const { rows } = await query('SELECT "ID_Dosen", "Nama", "Email", "Username", "Status" FROM dosen ORDER BY "Nama" ASC');
   return createResponse(true, rows, 'OK');
 }
 
-async function addLecturer(nama, username, statusAwal) {
-  if (!nama || !username) return createResponse(false, null, 'Nama dan username wajib diisi.');
-  const idDosen = generateId('DSN');
-  const tempPassword = Math.random().toString(36).substring(2, 10);
-  const passwordHash = hashPassword(tempPassword);
+async function addLecturer(nama, rawEmail, statusAwal) {
+  const cleanName = String(nama || '').trim();
+  const { email, error } = normalizeAndValidateEmail(rawEmail);
+  if (!cleanName) return createResponse(false, null, 'Nama dosen wajib diisi.');
+  if (error) return createResponse(false, null, error);
 
+  if (await isEmailRegistered('dosen', 'ID_Dosen', email)) {
+    return createResponse(false, null, `Email "${email}" sudah terdaftar pada akun dosen lain.`);
+  }
+
+  const idDosen = generateId('DSN');
   await query(
-    `INSERT INTO dosen ("ID_Dosen", "Nama", "Username", "Password_Hash", "Status")
+    `INSERT INTO dosen ("ID_Dosen", "Nama", "Email", "Password_Hash", "Status")
      VALUES ($1, $2, $3, $4, $5)`,
-    [idDosen, nama, username, passwordHash, statusAwal || 'Aktif']
+    [idDosen, cleanName, email, '', statusAwal || 'Aktif']
   );
 
-  await logActivity('Administrator', 'Admin', 'Tambah Dosen', nama);
-  return createResponse(true, { idDosen, username, tempPassword }, 'Dosen berhasil ditambahkan. Password sementara: ' + tempPassword);
+  await logActivity('Administrator', 'Admin', 'Tambah Dosen (Email)', `${cleanName} (${email})`);
+  return createResponse(true, { idDosen, nama: cleanName, email }, `Dosen "${cleanName}" berhasil didaftarkan dan langsung aktif login via email.`);
+}
+
+async function updateLecturer(idDosen, nama, rawEmail) {
+  if (!idDosen) return createResponse(false, null, 'ID Dosen wajib diisi.');
+  const cleanName = String(nama || '').trim();
+  const { email, error } = normalizeAndValidateEmail(rawEmail);
+  if (!cleanName) return createResponse(false, null, 'Nama dosen wajib diisi.');
+  if (error) return createResponse(false, null, error);
+
+  const target = await queryOne('SELECT "ID_Dosen" FROM dosen WHERE "ID_Dosen" = $1', [idDosen]);
+  if (!target) return createResponse(false, null, 'Data dosen tidak ditemukan.');
+
+  if (await isEmailRegistered('dosen', 'ID_Dosen', email, idDosen)) {
+    return createResponse(false, null, `Email "${email}" sudah digunakan oleh dosen lain.`);
+  }
+
+  await query('UPDATE dosen SET "Nama" = $1, "Email" = $2 WHERE "ID_Dosen" = $3', [cleanName, email, idDosen]);
+  await logActivity('Administrator', 'Admin', 'Ubah Data Dosen', `${cleanName} (${email})`);
+  return createResponse(true, { idDosen, nama: cleanName, email }, 'Data email dosen berhasil diperbarui.');
 }
 
 async function toggleLecturerStatus(idDosen, statusBaru) {
@@ -137,13 +188,68 @@ async function toggleLecturerStatus(idDosen, statusBaru) {
   return createResponse(true, null, 'Status dosen diperbarui.');
 }
 
-async function resetLecturerPassword(idDosen) {
-  const newPass = Math.random().toString(36).substring(2, 10);
-  const passwordHash = hashPassword(newPass);
+async function getAllAdmins() {
+  const { rows } = await query('SELECT "ID_Admin", "Nama", "Email", "Username" FROM admin ORDER BY "Nama" ASC');
+  return createResponse(true, rows, 'OK');
+}
 
-  await query(`UPDATE dosen SET "Password_Hash" = $1 WHERE "ID_Dosen" = $2`, [passwordHash, idDosen]);
-  await logActivity('Administrator', 'Admin', 'Reset Password Dosen', idDosen);
-  return createResponse(true, { newPass }, 'Password baru: ' + newPass);
+async function addAdmin(nama, rawEmail) {
+  const cleanName = String(nama || '').trim();
+  const { email, error } = normalizeAndValidateEmail(rawEmail);
+  if (!cleanName) return createResponse(false, null, 'Nama administrator wajib diisi.');
+  if (error) return createResponse(false, null, error);
+
+  if (await isEmailRegistered('admin', 'ID_Admin', email)) {
+    return createResponse(false, null, `Email "${email}" sudah terdaftar sebagai Administrator.`);
+  }
+
+  const idAdmin = generateId('ADM');
+  await query(
+    `INSERT INTO admin ("ID_Admin", "Nama", "Email", "Password_Hash")
+     VALUES ($1, $2, $3, $4)`,
+    [idAdmin, cleanName, email, '']
+  );
+
+  await logActivity('Administrator', 'Admin', 'Tambah Admin (Email)', `${cleanName} (${email})`);
+  return createResponse(true, { idAdmin, nama: cleanName, email }, `Administrator "${cleanName}" berhasil didaftarkan.`);
+}
+
+async function updateAdmin(idAdmin, nama, rawEmail) {
+  if (!idAdmin) return createResponse(false, null, 'ID Admin wajib diisi.');
+  const cleanName = String(nama || '').trim();
+  const { email, error } = normalizeAndValidateEmail(rawEmail);
+  if (!cleanName) return createResponse(false, null, 'Nama administrator wajib diisi.');
+  if (error) return createResponse(false, null, error);
+
+  const target = await queryOne('SELECT "ID_Admin" FROM admin WHERE "ID_Admin" = $1', [idAdmin]);
+  if (!target) return createResponse(false, null, 'Data administrator tidak ditemukan.');
+
+  if (await isEmailRegistered('admin', 'ID_Admin', email, idAdmin)) {
+    return createResponse(false, null, `Email "${email}" sudah digunakan oleh administrator lain.`);
+  }
+
+  await query('UPDATE admin SET "Nama" = $1, "Email" = $2 WHERE "ID_Admin" = $3', [cleanName, email, idAdmin]);
+  await logActivity('Administrator', 'Admin', 'Ubah Data Admin', `${cleanName} (${email})`);
+  return createResponse(true, { idAdmin, nama: cleanName, email }, 'Data administrator berhasil diperbarui.');
+}
+
+async function deleteAdmin(idAdmin, currentAdminId) {
+  if (!idAdmin) return createResponse(false, null, 'ID Admin wajib diisi.');
+  if (currentAdminId && idAdmin === currentAdminId) {
+    return createResponse(false, null, 'Anda tidak dapat menghapus akun Administrator yang sedang aktif Anda gunakan.');
+  }
+
+  const countRow = await queryOne('SELECT COUNT(*)::int AS total FROM admin');
+  if (!countRow || countRow.total <= 1) {
+    return createResponse(false, null, 'Minimal harus terdapat 1 akun Administrator terdaftar dalam sistem.');
+  }
+
+  const target = await queryOne('SELECT "Nama", "Email" FROM admin WHERE "ID_Admin" = $1', [idAdmin]);
+  if (!target) return createResponse(false, null, 'Data administrator tidak ditemukan.');
+
+  await query('DELETE FROM admin WHERE "ID_Admin" = $1', [idAdmin]);
+  await logActivity('Administrator', 'Admin', 'Hapus Admin', `${target.Nama} (${target.Email || '-'})`);
+  return createResponse(true, null, 'Akses email Administrator berhasil dihapus.');
 }
 
 // ────────────────────────────────────────────────────────────
@@ -261,8 +367,12 @@ module.exports = {
   staffLogin,
   getAllLecturers,
   addLecturer,
+  updateLecturer,
   toggleLecturerStatus,
-  resetLecturerPassword,
+  getAllAdmins,
+  addAdmin,
+  updateAdmin,
+  deleteAdmin,
   getAllParticipants,
   generateAccessCodesBatch,
   deactivateAccessCode,

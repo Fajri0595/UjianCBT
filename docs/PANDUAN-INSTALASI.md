@@ -84,18 +84,16 @@ Jika Anda ingin menggunakan database cloud PostgreSQL gratis dari Neon atau Supa
 
 Backend ini sudah dilengkapi fitur **Self-Healing & Auto-Initialization**:
 1. Saat aplikasi pertama kali dijalankan, sistem akan **secara otomatis membuat seluruh tabel** (`peserta`, `dosen`, `admin`, `ujian`, `soal`, `bank_soal`, `hasil_ujian`, `log_aktivitas`, `pengaturan_sistem`) jika belum ada.
-2. Akun bawaan (default) yang langsung aktif dan siap digunakan:
+2. Akun bawaan (default) yang langsung aktif dan siap digunakan (autentikasi **Email Terdaftar tanpa password**):
    - 🛡️ **Super Admin**:
-     - Username: `admin.pusatbahasa`
-     - Password: `admin123`
+     - Email Terdaftar: `admin@cbtbahasa.id`
    - 👨‍🏫 **Dosen Penguji**:
-     - Username: `dosen.aris`
-     - Password: `dosen123`
+     - Email Terdaftar: `dosen.aris@cbtbahasa.id`
    - 🎓 **Peserta Ujian Uji Coba**:
      - Kode Akses: `LANG-DEMO`
      - Nama: Contoh Peserta
 
-> 💡 **Tips Keamanan**: Setelah berhasil login pertama kali sebagai Admin atau Dosen, segera ganti password default tersebut melalui menu pengaturan akun!
+> 💡 **Tips Keamanan**: Karena login staf menggunakan sistem *passwordless* (tanpa kata sandi), segera ubah email bawaan (`admin@cbtbahasa.id` & `dosen.aris@cbtbahasa.id`) melalui menu **Staf & Akses Email** setelah login pertama, dan jaga kerahasiaan daftar email terdaftar tersebut.
 
 ---
 
@@ -112,7 +110,7 @@ Backend ini sudah dilengkapi fitur **Self-Healing & Auto-Initialization**:
      }
      ```
 2. Buka aplikasi web utama di `https://nama-project-anda.vercel.app`:
-   - Login sebagai **Admin** (`admin.pusatbahasa` / `admin123`).
+   - Login sebagai **Admin** menggunakan email terdaftar (`admin@cbtbahasa.id`).
    - Masuk ke menu **Pengaturan & Diagnostik**.
    - Klik **Jalankan Diagnostik** untuk memastikan seluruh tabel database berstatus hijau (OK).
 

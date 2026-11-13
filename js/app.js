@@ -8,7 +8,7 @@
     // ════════════════════════════════════════════════════════
     const appState = {
       participant: null,        // { ID_Peserta, Nama, Kontak, ID_Ujian_Target }
-      staff: null,               // { ID_Dosen/ID_Admin, Nama, Username, role }
+      staff: null,               // { ID_Dosen/ID_Admin, Nama, Email, role }
       currentExam: null,         // ujian object saat sesi berjalan
       examQuestions: [],         // soal (tanpa jawaban benar)
       currentQuestionIndex: 0,
@@ -44,7 +44,7 @@
         hAvailableExams: 'Ujian Tersedia', hReviewAnswers: 'Tinjau Jawaban Anda', pReviewAnswers: 'Pastikan seluruh soal terisi sebelum submit final.',
         hExamCompleted: 'Ujian Selesai!', hMyExams: 'Ujian Saya', pMyExams: 'Kelola paket ujian kebahasaan yang Anda buat.',
         hAdminDashboard: 'Dashboard Admin — Pusat Layanan Bahasa', pAdminDashboard: 'Ringkasan operasional sistem CBT secara real-time.',
-        hManageLecturers: 'Manajemen Dosen Penguji', pManageLecturers: 'Kelola 5-10 akun dosen yang ditunjuk khusus untuk membuat soal.',
+        hManageLecturers: 'Manajemen Staf & Akses Email', pManageLecturers: 'Kelola daftar email Administrator dan Dosen Penguji yang diizinkan masuk langsung ke sistem CBT.',
         hManageParticipants: 'Manajemen Peserta & Kode Akses', pManageParticipants: 'Kelola token peserta agar sesi ujian tetap privat per-rombel.',
         hManageExams: 'Katalog & Pengawasan Semua Ujian', pManageExams: 'Pantau seluruh ujian yang dibuat oleh semua dosen.',
         hReports: 'Laporan Hasil & Rekapitulasi Global', pReports: 'Ekspor rekapan nilai terstandar institusi.',
@@ -52,11 +52,11 @@
         hSettings: 'Pengaturan Sistem & Parameter Ujian', pSettings: 'Konfigurasi ambang kelulusan standar dan durasi default.',
         hManageQuestions: 'Kelola Soal',
         lblFullName: 'Nama Lengkap', lblAccessCode: 'Kode Akses (Diberikan Admin)', btnContinue: 'Lanjutkan / Mulai Sesi',
-        lblUsername: 'Username / NIP', btnStaffLogin: 'Masuk ke Dashboard Staf',
+        lblStaffEmail: 'Email Terdaftar', hintPasswordlessEmail: 'Masuk langsung menggunakan email yang terdaftar di sistem tanpa kata sandi.', btnStaffLogin: 'Masuk dengan Email',
         lblTimeLeft: 'Sisa Waktu', lblQuestionNav: 'Navigasi Soal', btnReviewAll: 'Tinjau Semua Jawaban',
         btnSubmitFinal: 'Selesaikan & Kirim Ujian (Submit Final)', lblTotalScore: 'Total Nilai Konversi (Skor TOEFL)',
         btnBackToStart: 'Kembali ke Awal', btnCreateExam: 'Buat Ujian Baru',
-        navDashboard: 'Dashboard', navMyExamsAdmin: 'Ujian Saya (Admin)', navMyExams: 'My Exams', navLecturers: 'Manajemen Dosen',
+        navDashboard: 'Dashboard', navMyExamsAdmin: 'Ujian Saya (Admin)', navMyExams: 'My Exams', navLecturers: 'Staf & Akses Email',
         navParticipants: 'Peserta & Kode Akses', navCatalog: 'Katalog Ujian', navReports: 'Laporan & Rekap',
         navActivityLog: 'Log Aktivitas', navSettings: 'Pengaturan Sistem', navBankSoal: 'Bank Soal', navRombel: 'Perbandingan Rombel'
       },
@@ -66,7 +66,7 @@
         hAvailableExams: 'Available Exams', hReviewAnswers: 'Review Your Answers', pReviewAnswers: 'Make sure all questions are answered before final submit.',
         hExamCompleted: 'Exam Completed!', hMyExams: 'My Exams', pMyExams: 'Manage the language exam packages you have created.',
         hAdminDashboard: 'Admin Dashboard — Language Service Center', pAdminDashboard: 'Real-time operational summary of the CBT system.',
-        hManageLecturers: 'Lecturer Management', pManageLecturers: 'Manage 5-10 designated lecturer accounts for creating questions.',
+        hManageLecturers: 'Staff & Email Access Management', pManageLecturers: 'Manage registered Administrator and Lecturer email addresses allowed to sign in directly to the CBT system.',
         hManageParticipants: 'Participant & Access Code Management', pManageParticipants: 'Manage participant tokens to keep exam sessions private per class.',
         hManageExams: 'Exam Catalog & Oversight', pManageExams: 'Monitor all exams created by every lecturer.',
         hReports: 'Global Results Report & Recap', pReports: 'Export standardized institutional score recap.',
@@ -74,11 +74,11 @@
         hSettings: 'System Settings & Exam Parameters', pSettings: 'Configure default passing score and duration standards.',
         hManageQuestions: 'Manage Questions',
         lblFullName: 'Full Name', lblAccessCode: 'Access Code (Provided by Admin)', btnContinue: 'Continue / Start Session',
-        lblUsername: 'Username / Staff ID', btnStaffLogin: 'Sign in to Staff Dashboard',
+        lblStaffEmail: 'Registered Email', hintPasswordlessEmail: 'Sign in directly using your registered staff email without a password.', btnStaffLogin: 'Sign in with Email',
         lblTimeLeft: 'Time Remaining', lblQuestionNav: 'Question Navigator', btnReviewAll: 'Review All Answers',
         btnSubmitFinal: 'Finish & Submit Exam (Final Submit)', lblTotalScore: 'Total Converted Score (TOEFL Score)',
         btnBackToStart: 'Return to Start', btnCreateExam: 'Create New Exam',
-        navDashboard: 'Dashboard', navMyExamsAdmin: 'My Exams (Admin)', navMyExams: 'My Exams', navLecturers: 'Lecturer Management',
+        navDashboard: 'Dashboard', navMyExamsAdmin: 'My Exams (Admin)', navMyExams: 'My Exams', navLecturers: 'Staff & Email Access',
         navParticipants: 'Participants & Codes', navCatalog: 'Exam Catalog', navReports: 'Reports & Recap',
         navActivityLog: 'Activity Log', navSettings: 'System Settings', navBankSoal: 'Question Bank', navRombel: 'Cohort Comparison'
       }
@@ -309,21 +309,33 @@
       appState.staffRole = role;
       document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'admin');
       document.getElementById('btnRoleDosen').classList.toggle('active', role === 'dosen');
+      const emailInput = document.getElementById('sEmail');
+      if (emailInput) {
+        emailInput.placeholder = role === 'admin' ? 'admin@cbtbahasa.id' : 'dosen.aris@cbtbahasa.id';
+      }
+      const errBox = document.getElementById('staffLoginError');
+      if (errBox) errBox.style.display = 'none';
     }
     
     function handleStaffLogin(e) {
       e.preventDefault();
-      const username = document.getElementById('sUsername').value.trim();
-      const password = document.getElementById('sPassword').value;
+      const email = document.getElementById('sEmail').value.trim().toLowerCase();
       const errBox = document.getElementById('staffLoginError');
       errBox.style.display = 'none';
       const btn = e.target.querySelector('button[type="submit"]');
-      btn.disabled = true; btn.innerHTML = 'Memproses...';
+      const restoreLoginBtn = () => {
+        btn.disabled = false;
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email';
+        btn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
+      };
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Email...';
     
       gasRun
         .withSuccessHandler(res => {
+          restoreLoginBtn();
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          btn.disabled = false; btn.innerHTML = 'Masuk ke Dashboard Staf';
           if (res.success) {
             appState.staff = res.data;
             localStorage.setItem('cbt_staff', JSON.stringify(res.data));
@@ -338,8 +350,8 @@
             errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message); errBox.style.display = 'block';
           }
         })
-        .withFailureHandler(err => { btn.disabled = false; showToast('Error', err.message, 'danger'); })
-        .staffLogin(appState.staffRole, username, password);
+        .withFailureHandler(err => { restoreLoginBtn(); showToast('Error', err.message, 'danger'); })
+        .staffLogin(appState.staffRole, email);
     }
     
     function logoutStaff() {
@@ -353,7 +365,7 @@
         { id: 'adminDashboard', icon: 'bi-speedometer2', i18n: 'navDashboard', label: 'Dashboard' },
         { id: 'dosenDashboard', icon: 'bi-journal-text', i18n: 'navMyExamsAdmin', label: 'Ujian Saya (Admin)' },
         { id: 'bankSoal', icon: 'bi-collection', i18n: 'navBankSoal', label: 'Bank Soal' },
-        { id: 'manageLecturers', icon: 'bi-people', i18n: 'navLecturers', label: 'Manajemen Dosen' },
+        { id: 'manageLecturers', icon: 'bi-people', i18n: 'navLecturers', label: 'Manajemen Staf & Email' },
         { id: 'manageParticipants', icon: 'bi-key', i18n: 'navParticipants', label: 'Peserta & Kode Akses' },
         { id: 'manageExams', icon: 'bi-journal-bookmark', i18n: 'navCatalog', label: 'Katalog Ujian' },
         { id: 'reports', icon: 'bi-bar-chart', i18n: 'navReports', label: 'Laporan & Rekap' },
@@ -2056,99 +2068,192 @@
 
     // ════════════════════════════════════════════════════════
     function loadLecturers() {
+      loadAdmins();
       gasRun
         .withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
-          document.getElementById('lecturerTableBody').innerHTML = res.data.length ? res.data.map(d => `
+          window._lecturersCache = res.data || [];
+          document.getElementById('lecturerTableBody').innerHTML = res.data.length ? res.data.map(d => {
+            const safeName = escapeHtml(d.Nama || '');
+            const initial = escapeHtml((d.Nama || 'D').charAt(0).toUpperCase());
+            const emailDisplay = d.Email
+              ? `<span style="font-weight:500;">${escapeHtml(d.Email)}</span>`
+              : `<span class="badge-pill badge-warning" title="Akun lama belum memiliki email">Belum ada email</span>` +
+                (d.Username ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Username lama: ${escapeHtml(d.Username)}</div>` : '');
+            const nextStatus = d.Status === 'Aktif' ? 'Nonaktif' : 'Aktif';
+            const toggleIcon = d.Status === 'Aktif' ? 'bi-toggle2-on' : 'bi-toggle2-off';
+            return `
             <tr>
-              <td><div class="avatar-circle" style="display:inline-flex;width:28px;height:28px;font-size:11px;margin-right:8px;">${d.Nama.charAt(0)}</div>${d.Nama}</td>
-              <td>${d.Username}</td>
+              <td><div class="avatar-circle" style="display:inline-flex;width:28px;height:28px;font-size:11px;margin-right:8px;">${initial}</div>${safeName}</td>
+              <td>${emailDisplay}</td>
               <td>${d.Status === 'Aktif' ? '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>' : '<span class="badge-pill badge-neutral"><span class="dot"></span>Nonaktif</span>'}</td>
               <td>
-                <button class="btn-icon-sm" title="Reset Password" onclick="resetPassword('${d.ID_Dosen}')"><i class="bi bi-key"></i></button>
-                <button class="btn-icon-sm" title="Toggle Status" onclick="toggleLecturer('${d.ID_Dosen}','${d.Status === 'Aktif' ? 'Nonaktif' : 'Aktif'}')"><i class="bi bi-toggle2-on"></i></button>
+                <button class="btn-icon-sm" title="Edit Nama & Email" onclick="openEditLecturerModal('${d.ID_Dosen}')"><i class="bi bi-pencil-square"></i></button>
+                <button class="btn-icon-sm" title="${d.Status === 'Aktif' ? 'Nonaktifkan Akses' : 'Aktifkan Akses'}" onclick="toggleLecturer('${d.ID_Dosen}','${nextStatus}')"><i class="bi ${toggleIcon}"></i></button>
               </td>
-            </tr>`).join('') : `<tr><td colspan="4"><div class="empty-state"><i class="bi bi-person-x"></i>Belum ada dosen terdaftar.</div></td></tr>`;
+            </tr>`;
+          }).join('') : `<tr><td colspan="4"><div class="empty-state"><i class="bi bi-person-x"></i>Belum ada dosen terdaftar.</div></td></tr>`;
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
         .getAllLecturers();
     }
-    
-    function openAddLecturerModal() { document.getElementById('newLecturerName').value = ''; document.getElementById('newLecturerUsername').value = ''; openModal('modalAddLecturer'); }
-    function submitAddLecturer() {
-      const nama = document.getElementById('newLecturerName').value.trim();
-      const username = document.getElementById('newLecturerUsername').value.trim();
-      if (!nama || !username) { showToast('Peringatan', 'Lengkapi semua field.', 'warning'); return; }
-      gasRun
-        .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          closeModal('modalAddLecturer');
-          if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
-          loadLecturers();
-          showCredentialModal({
-            title: 'Dosen Berhasil Ditambahkan',
-            subtitle: nama,
-            username: res.data.username,
-            password: res.data.tempPassword,
-            note: 'Bagikan username & password sementara ini kepada dosen secara langsung/pribadi. Dosen akan diminta mengganti password saat login pertama.'
-          });
-        })
-        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-        .addLecturer(nama, username, 'Aktif');
+
+    function openAddLecturerModal() {
+      document.getElementById('editLecturerId').value = '';
+      document.getElementById('newLecturerName').value = '';
+      document.getElementById('newLecturerEmail').value = '';
+      document.getElementById('modalLecturerTitle').innerHTML = '<i class="bi bi-person-plus"></i> Tambah Akun Dosen Penguji';
+      openModal('modalAddLecturer');
     }
+
+    function openEditLecturerModal(idDosen) {
+      const lecturer = (window._lecturersCache || []).find(d => d.ID_Dosen === idDosen);
+      if (!lecturer) return;
+      document.getElementById('editLecturerId').value = lecturer.ID_Dosen;
+      document.getElementById('newLecturerName').value = lecturer.Nama || '';
+      document.getElementById('newLecturerEmail').value = lecturer.Email || '';
+      document.getElementById('modalLecturerTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Email &amp; Nama Dosen';
+      openModal('modalAddLecturer');
+    }
+
+    function submitAddLecturer() {
+      const idEdit = document.getElementById('editLecturerId').value.trim();
+      const nama = document.getElementById('newLecturerName').value.trim();
+      const email = document.getElementById('newLecturerEmail').value.trim().toLowerCase();
+      if (!nama || !email) { showToast('Peringatan', 'Nama dan alamat email wajib diisi.', 'warning'); return; }
+
+      const handler = res => {
+        if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
+        if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
+        closeModal('modalAddLecturer');
+        showToast('Berhasil', res.message, 'success');
+        loadLecturers();
+      };
+
+      if (idEdit) {
+        gasRun
+          .withSuccessHandler(handler)
+          .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+          .updateLecturer(idEdit, nama, email);
+      } else {
+        gasRun
+          .withSuccessHandler(handler)
+          .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+          .addLecturer(nama, email, 'Aktif');
+      }
+    }
+
     function toggleLecturer(id, statusBaru) {
       gasRun.withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; } showToast(res.success ? 'Berhasil' : 'Gagal', res.message, res.success ? 'success' : 'danger'); loadLecturers(); }).toggleLecturerStatus(id, statusBaru);
     }
-    function resetPassword(id) {
-      const row = (document.getElementById('lecturerTableBody').querySelector(`button[onclick="resetPassword('${id}')"]`) || {}).closest ? document.getElementById('lecturerTableBody').querySelector(`button[onclick="resetPassword('${id}')"]`).closest('tr') : null;
-      const namaDosen = row ? row.children[0].textContent.trim() : '';
-      const usernameDosen = row ? row.children[1].textContent.trim() : '';
+
+    function loadAdmins() {
+      const tbody = document.getElementById('adminTableBody');
+      if (!tbody) return;
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
-          showCredentialModal({
-            title: 'Password Dosen Direset',
-            subtitle: namaDosen,
-            username: usernameDosen,
-            password: res.data.newPass,
-            note: 'Password lama sudah tidak berlaku. Bagikan password baru ini kepada dosen secara langsung/pribadi.'
-          });
+          if (!res || !res.success) return;
+          const rows = res.data || [];
+          window._adminsCache = rows;
+          const currentId = appState.staff ? appState.staff.ID_Admin : null;
+          tbody.innerHTML = rows.length ? rows.map(a => {
+            const safeName = escapeHtml(a.Nama || '');
+            const initial = escapeHtml((a.Nama || 'A').charAt(0).toUpperCase());
+            const isCurrent = currentId && a.ID_Admin === currentId;
+            const emailDisplay = a.Email
+              ? `<span style="font-weight:500;">${escapeHtml(a.Email)}</span>`
+              : `<span class="badge-pill badge-warning">Belum ada email</span>`;
+            const noteBadge = isCurrent
+              ? '<span class="badge-pill badge-primary"><span class="dot"></span>Sesi Anda Saat Ini</span>'
+              : '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>';
+            const deleteBtn = (!isCurrent && rows.length > 1)
+              ? `<button class="btn-icon-sm" style="color:var(--danger);" title="Hapus Akses Admin" onclick="deleteAdminAccount('${a.ID_Admin}')"><i class="bi bi-trash"></i></button>`
+              : `<button class="btn-icon-sm" disabled title="${isCurrent ? 'Tidak dapat menghapus akun sendiri' : 'Minimal 1 admin harus tersisa'}" style="opacity:0.4;cursor:not-allowed;"><i class="bi bi-lock"></i></button>`;
+            return `
+            <tr>
+              <td><div class="avatar-circle" style="display:inline-flex;width:28px;height:28px;font-size:11px;margin-right:8px;background:var(--primary-50);color:var(--primary);">${initial}</div>${safeName}</td>
+              <td>${emailDisplay}</td>
+              <td>${noteBadge}</td>
+              <td>
+                <button class="btn-icon-sm" title="Edit Nama & Email Admin" onclick="openEditAdminModal('${a.ID_Admin}')"><i class="bi bi-pencil-square"></i></button>
+                ${deleteBtn}
+              </td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="4"><div class="empty-state"><i class="bi bi-shield-x"></i>Belum ada administrator terdaftar.</div></td></tr>`;
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-        .resetLecturerPassword(id);
+        .getAllAdmins();
     }
-    
-    // Modal generik untuk menampilkan kredensial (password sementara) agar mudah disalin & dibagikan
-    function showCredentialModal(opts) {
-      document.getElementById('modalGenericContent').innerHTML = `
-        <div class="modal-header-cbt"><span><i class="bi bi-shield-lock"></i> ${opts.title}</span>
-          <button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalGeneric')">&times;</button></div>
-        <div class="modal-body-cbt">
-          <p style="font-size:13.5px;color:var(--text-muted);margin-top:0;">${opts.subtitle || ''}</p>
-          <label class="field-label">Username</label>
-          <div style="display:flex;gap:8px;margin-top:4px;margin-bottom:14px;">
-            <input type="text" class="input-cbt" value="${opts.username}" readonly id="credUsernameField">
-            <button type="button" class="btn-cbt btn-cbt-outline" onclick="copyCredentialField('credUsernameField', this)"><i class="bi bi-clipboard"></i></button>
-          </div>
-          <label class="field-label">Password Sementara</label>
-          <div style="display:flex;gap:8px;margin-top:4px;">
-            <input type="text" class="input-cbt" value="${opts.password}" readonly id="credPasswordField" style="font-family:monospace;font-weight:700;letter-spacing:.5px;">
-            <button type="button" class="btn-cbt btn-cbt-outline" onclick="copyCredentialField('credPasswordField', this)"><i class="bi bi-clipboard"></i></button>
-          </div>
-          <div style="background:var(--warning-bg);color:var(--warning-text);border-radius:var(--radius-input);padding:12px;font-size:12.5px;margin-top:16px;">
-            <i class="bi bi-info-circle-fill"></i> ${opts.note}
-          </div>
-        </div>
-        <div class="modal-footer-cbt">
-          <button class="btn-cbt btn-cbt-primary" onclick="copyBothCredentials('${opts.username}','${opts.password}');" ><i class="bi bi-clipboard-check"></i> Salin Username & Password</button>
-          <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalGeneric')">Tutup</button>
-        </div>`;
-      openModal('modalGeneric');
+
+    function openAddAdminModal() {
+      document.getElementById('editAdminId').value = '';
+      document.getElementById('newAdminName').value = '';
+      document.getElementById('newAdminEmail').value = '';
+      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-shield-plus"></i> Tambah Email Administrator';
+      openModal('modalAddAdmin');
     }
-    
+
+    function openEditAdminModal(idAdmin) {
+      const admin = (window._adminsCache || []).find(a => a.ID_Admin === idAdmin);
+      if (!admin) return;
+      document.getElementById('editAdminId').value = admin.ID_Admin;
+      document.getElementById('newAdminName').value = admin.Nama || '';
+      document.getElementById('newAdminEmail').value = admin.Email || '';
+      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Email Administrator';
+      openModal('modalAddAdmin');
+    }
+
+    function submitAddAdmin() {
+      const idEdit = document.getElementById('editAdminId').value.trim();
+      const nama = document.getElementById('newAdminName').value.trim();
+      const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
+      if (!nama || !email) { showToast('Peringatan', 'Nama dan alamat email wajib diisi.', 'warning'); return; }
+
+      const handler = res => {
+        if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
+        if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
+        closeModal('modalAddAdmin');
+        showToast('Berhasil', res.message, 'success');
+        if (idEdit && appState.staff && appState.staff.ID_Admin === idEdit) {
+          appState.staff.Nama = nama;
+          appState.staff.Email = email;
+          localStorage.setItem('cbt_staff', JSON.stringify(appState.staff));
+          document.getElementById('staffNameLabel').textContent = nama;
+          document.getElementById('staffAvatar').textContent = nama.charAt(0).toUpperCase();
+        }
+        loadAdmins();
+      };
+
+      if (idEdit) {
+        gasRun
+          .withSuccessHandler(handler)
+          .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+          .updateAdmin(idEdit, nama, email);
+      } else {
+        gasRun
+          .withSuccessHandler(handler)
+          .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+          .addAdmin(nama, email);
+      }
+    }
+
+    function deleteAdminAccount(idAdmin) {
+      const admin = (window._adminsCache || []).find(a => a.ID_Admin === idAdmin);
+      const label = admin ? `${admin.Nama} (${admin.Email || '-'})` : idAdmin;
+      if (!confirm(`Hapus akses login Administrator untuk ${label}?`)) return;
+      const currentAdminId = appState.staff ? appState.staff.ID_Admin : null;
+      gasRun
+        .withSuccessHandler(res => {
+          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT.', 'danger'); return; }
+          showToast(res.success ? 'Berhasil' : 'Gagal', res.message, res.success ? 'success' : 'danger');
+          if (res.success) loadAdmins();
+        })
+        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+        .deleteAdmin(idAdmin, currentAdminId);
+    }
+
     function copyCredentialField(fieldId, btnEl) {
       const field = document.getElementById(fieldId);
       field.select();
@@ -2156,13 +2261,6 @@
         const original = btnEl.innerHTML;
         btnEl.innerHTML = '<i class="bi bi-check-lg"></i>';
         setTimeout(() => btnEl.innerHTML = original, 1200);
-      }).catch(() => showToast('Gagal', 'Tidak dapat menyalin otomatis, silakan salin manual.', 'warning'));
-    }
-    
-    function copyBothCredentials(username, password) {
-      const text = `Username: ${username}\nPassword: ${password}`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Disalin', 'Username & password berhasil disalin ke clipboard.', 'success');
       }).catch(() => showToast('Gagal', 'Tidak dapat menyalin otomatis, silakan salin manual.', 'warning'));
     }
     

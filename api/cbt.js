@@ -43,11 +43,15 @@ const ACTION_PERMISSIONS = {
   uploadAudioToDrive: 'DOSEN',
   getParticipantResultDetail: 'DOSEN',
 
-  // Admin — Dosen & Peserta
+  // Admin — Staf (Admin & Dosen) & Peserta
   getAllLecturers: 'ADMIN',
   addLecturer: 'ADMIN',
+  updateLecturer: 'ADMIN',
   toggleLecturerStatus: 'ADMIN',
-  resetLecturerPassword: 'ADMIN',
+  getAllAdmins: 'ADMIN',
+  addAdmin: 'ADMIN',
+  updateAdmin: 'ADMIN',
+  deleteAdmin: 'ADMIN',
   getAllParticipants: 'ADMIN',
   generateAccessCodesBatch: 'ADMIN',
   deactivateAccessCode: 'ADMIN',

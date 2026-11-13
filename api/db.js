@@ -112,16 +112,18 @@ async function ensureSchema() {
       CREATE TABLE IF NOT EXISTS dosen (
         "ID_Dosen" VARCHAR(60) PRIMARY KEY,
         "Nama" VARCHAR(200) NOT NULL,
-        "Username" VARCHAR(100) UNIQUE NOT NULL,
-        "Password_Hash" VARCHAR(255) NOT NULL,
+        "Username" VARCHAR(100) UNIQUE,
+        "Email" VARCHAR(200),
+        "Password_Hash" VARCHAR(255) DEFAULT '',
         "Status" VARCHAR(30) DEFAULT 'Aktif'
       );
 
       CREATE TABLE IF NOT EXISTS admin (
         "ID_Admin" VARCHAR(60) PRIMARY KEY,
         "Nama" VARCHAR(200) NOT NULL,
-        "Username" VARCHAR(100) UNIQUE NOT NULL,
-        "Password_Hash" VARCHAR(255) NOT NULL
+        "Username" VARCHAR(100) UNIQUE,
+        "Email" VARCHAR(200),
+        "Password_Hash" VARCHAR(255) DEFAULT ''
       );
 
       CREATE TABLE IF NOT EXISTS ujian (
@@ -213,32 +215,52 @@ async function ensureSchema() {
       ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Active_Token" TEXT;
       ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Device_Info" TEXT;
       ALTER TABLE ujian ADD COLUMN IF NOT EXISTS "Acak_Soal" BOOLEAN DEFAULT TRUE;
+
+      -- Migrasi Autentikasi Email Tanpa Password untuk Staf (Admin & Dosen)
+      ALTER TABLE dosen ADD COLUMN IF NOT EXISTS "Email" VARCHAR(200);
+      ALTER TABLE admin ADD COLUMN IF NOT EXISTS "Email" VARCHAR(200);
+      ALTER TABLE dosen ALTER COLUMN "Username" DROP NOT NULL;
+      ALTER TABLE dosen ALTER COLUMN "Password_Hash" DROP NOT NULL;
+      ALTER TABLE admin ALTER COLUMN "Username" DROP NOT NULL;
+      ALTER TABLE admin ALTER COLUMN "Password_Hash" DROP NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_dosen_email_lower ON dosen (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_email_lower ON admin (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
     `);
 
-    // 2. Injeksi Akun Admin Awal jika kosong
+    // 2. Injeksi Akun Admin Awal jika kosong (atau backfill email untuk database lama)
     const adminCheck = await query('SELECT count(*) FROM admin');
     if (parseInt(adminCheck.rows[0].count, 10) === 0) {
-      const crypto = require('crypto');
-      const salt = process.env.SALT_KEY || 'CBT_SALT_DEFAULT_VERCEL';
-      const adminPassHash = crypto.createHash('sha256').update('admin123:' + salt).digest('hex');
       await query(
-        `INSERT INTO admin ("ID_Admin", "Nama", "Username", "Password_Hash")
-         VALUES ($1, $2, $3, $4)`,
-        ['ADM-001', 'Super Admin CBT', 'admin.pusatbahasa', adminPassHash]
+        `INSERT INTO admin ("ID_Admin", "Nama", "Username", "Email", "Password_Hash")
+         VALUES ($1, $2, $3, $4, $5)`,
+        ['ADM-001', 'Super Admin CBT', 'admin.pusatbahasa', 'admin@cbtbahasa.id', '']
       );
+    } else {
+      await query(`
+        UPDATE admin
+        SET "Email" = 'admin@cbtbahasa.id'
+        WHERE ("ID_Admin" = 'ADM-001' OR "Username" = 'admin.pusatbahasa')
+          AND ("Email" IS NULL OR TRIM("Email") = '')
+          AND NOT EXISTS (SELECT 1 FROM admin WHERE LOWER(TRIM("Email")) = 'admin@cbtbahasa.id')
+      `);
     }
 
-    // 3. Injeksi Akun Dosen Awal jika kosong
+    // 3. Injeksi Akun Dosen Awal jika kosong (atau backfill email untuk database lama)
     const dosenCheck = await query('SELECT count(*) FROM dosen');
     if (parseInt(dosenCheck.rows[0].count, 10) === 0) {
-      const crypto = require('crypto');
-      const salt = process.env.SALT_KEY || 'CBT_SALT_DEFAULT_VERCEL';
-      const dosenPassHash = crypto.createHash('sha256').update('dosen123:' + salt).digest('hex');
       await query(
-        `INSERT INTO dosen ("ID_Dosen", "Nama", "Username", "Password_Hash", "Status")
-         VALUES ($1, $2, $3, $4, $5)`,
-        ['DSN-001', 'Dr. Aris Munandar, M.Hum.', 'dosen.aris', dosenPassHash, 'Aktif']
+        `INSERT INTO dosen ("ID_Dosen", "Nama", "Username", "Email", "Password_Hash", "Status")
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        ['DSN-001', 'Dr. Aris Munandar, M.Hum.', 'dosen.aris', 'dosen.aris@cbtbahasa.id', '', 'Aktif']
       );
+    } else {
+      await query(`
+        UPDATE dosen
+        SET "Email" = 'dosen.aris@cbtbahasa.id'
+        WHERE ("ID_Dosen" = 'DSN-001' OR "Username" = 'dosen.aris')
+          AND ("Email" IS NULL OR TRIM("Email") = '')
+          AND NOT EXISTS (SELECT 1 FROM dosen WHERE LOWER(TRIM("Email")) = 'dosen.aris@cbtbahasa.id')
+      `);
     }
 
     // 4. Injeksi Peserta Contoh jika kosong

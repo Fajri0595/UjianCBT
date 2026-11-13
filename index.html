@@ -234,28 +234,20 @@
 
       <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
         <div class="auth-field-group">
-          <label class="field-label" data-i18n="lblUsername">Username / NIP</label>
+          <label class="field-label" data-i18n="lblStaffEmail">Email Terdaftar</label>
           <div class="input-icon-wrapper">
-            <span class="input-icon-prefix"><i class="bi bi-person-badge"></i></span>
-            <input type="text" id="sUsername" class="input-cbt" placeholder="admin.pusatbahasa" required autocomplete="username">
+            <span class="input-icon-prefix"><i class="bi bi-envelope-at"></i></span>
+            <input type="email" id="sEmail" class="input-cbt" placeholder="admin@cbtbahasa.id" required autocomplete="email">
           </div>
-        </div>
-
-        <div class="auth-field-group">
-          <label class="field-label">Password</label>
-          <div class="input-icon-wrapper">
-            <span class="input-icon-prefix"><i class="bi bi-lock-fill"></i></span>
-            <input type="password" id="sPassword" class="input-cbt" placeholder="••••••••" required autocomplete="current-password">
-            <button type="button" class="input-password-toggle" onclick="togglePasswordVisibility('sPassword', this)" title="Lihat / Sembunyikan Password">
-              <i class="bi bi-eye"></i>
-            </button>
-          </div>
+          <small style="display:block;margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.45;">
+            <i class="bi bi-shield-lock"></i> <span data-i18n="hintPasswordlessEmail">Masuk langsung menggunakan email yang terdaftar di sistem tanpa kata sandi.</span>
+          </small>
         </div>
 
         <div id="staffLoginError" class="field-error-modern"></div>
 
-        <button type="submit" class="btn-cbt btn-cbt-teal btn-auth-submit">
-          <i class="bi bi-box-arrow-in-right"></i> <span data-i18n="btnStaffLogin">Masuk ke Dashboard Staf</span>
+        <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
+          <i class="bi bi-box-arrow-in-right"></i> <span data-i18n="btnStaffLogin">Masuk dengan Email</span>
         </button>
       </form>
     </div>
@@ -780,15 +772,45 @@
       </div>
     </section>
 
-    <!-- ══ ADMIN: Manage Lecturers ══ -->
+    <!-- ══ ADMIN: Manage Staff & Email Whitelist (Admin & Dosen) ══ -->
     <section id="section-manageLecturers" class="content-section app-content">
-      <div class="page-header"><div><h2 data-i18n="hManageLecturers">Manajemen Dosen Penguji</h2><p data-i18n="pManageLecturers">Kelola 5-10 akun dosen yang ditunjuk khusus untuk membuat soal.</p></div>
-        <button class="btn-cbt btn-cbt-primary" onclick="openAddLecturerModal()"><i class="bi bi-person-plus"></i> Tambah Dosen Baru</button>
+      <div class="page-header">
+        <div>
+          <h2 data-i18n="hManageLecturers">Manajemen Staf &amp; Akses Email</h2>
+          <p data-i18n="pManageLecturers">Kelola daftar email Administrator dan Dosen Penguji yang diizinkan masuk langsung ke sistem CBT.</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-cbt btn-cbt-outline" onclick="openAddAdminModal()"><i class="bi bi-shield-plus"></i> Tambah Admin</button>
+          <button class="btn-cbt btn-cbt-primary" onclick="openAddLecturerModal()"><i class="bi bi-person-plus"></i> Tambah Dosen Baru</button>
+        </div>
       </div>
-      <div class="table-wrap"><table class="table-cbt">
-        <thead><tr><th>Nama</th><th>Username</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody id="lecturerTableBody"></tbody>
-      </table></div>
+
+      <div style="background:var(--primary-50);border:1px solid var(--primary-100);color:var(--primary-dark);border-radius:var(--radius-card);padding:12px 16px;font-size:12.5px;margin-bottom:18px;display:flex;align-items:flex-start;gap:10px;">
+        <i class="bi bi-shield-lock-fill" style="font-size:16px;margin-top:2px;"></i>
+        <div>
+          <strong>Autentikasi Berbasis Email Terdaftar (Tanpa Password):</strong> Hanya alamat email yang terdaftar dan berstatus aktif di bawah ini yang dapat masuk ke Portal Staf. Jaga kerahasiaan alamat email Administrator serta segera ubah email bawaan sebelum digunakan untuk ujian produksi.
+        </div>
+      </div>
+
+      <div style="margin-bottom:22px;">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 10px 0;display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-shield-check" style="color:var(--primary);"></i> Administrator Sistem
+        </h3>
+        <div class="table-wrap"><table class="table-cbt">
+          <thead><tr><th>Nama</th><th>Email Terdaftar</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+          <tbody id="adminTableBody"></tbody>
+        </table></div>
+      </div>
+
+      <div>
+        <h3 style="font-size:15px;font-weight:700;color:var(--text-heading);margin:0 0 10px 0;display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-person-badge" style="color:var(--teal);"></i> Dosen Penguji
+        </h3>
+        <div class="table-wrap"><table class="table-cbt">
+          <thead><tr><th>Nama</th><th>Email Terdaftar</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="lecturerTableBody"></tbody>
+        </table></div>
+      </div>
     </section>
 
     <!-- ══ ADMIN: Manage Participants & Access Codes ══ -->
@@ -1061,18 +1083,40 @@
 
 <div class="modal-overlay" id="modalAddLecturer">
   <div class="modal-cbt">
-    <div class="modal-header-cbt"><span><i class="bi bi-person-plus"></i> Tambah Akun Dosen Penguji</span>
+    <div class="modal-header-cbt"><span id="modalLecturerTitle"><i class="bi bi-person-plus"></i> Tambah Akun Dosen Penguji</span>
       <button class="btn-cbt-ghost" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalAddLecturer')">&times;</button></div>
     <div class="modal-body-cbt">
-      <label class="field-label">Nama Lengkap & Gelar Akademik *</label>
+      <input type="hidden" id="editLecturerId" value="">
+      <label class="field-label">Nama Lengkap &amp; Gelar Akademik *</label>
       <input type="text" id="newLecturerName" class="input-cbt" placeholder="Dr. Siti Rahmawati, M.Pd." required>
       <div style="height:14px;"></div>
-      <label class="field-label">Username Sistem *</label>
-      <input type="text" id="newLecturerUsername" class="input-cbt" placeholder="siti_rahmawati" required>
+      <label class="field-label">Email Terdaftar (Untuk Login Tanpa Password) *</label>
+      <input type="email" id="newLecturerEmail" class="input-cbt" placeholder="siti.rahmawati@kampus.ac.id" required>
+      <small style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Pastikan alamat email benar. Dosen dapat langsung masuk menggunakan email ini di Portal Staf.</small>
     </div>
     <div class="modal-footer-cbt">
       <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalAddLecturer')">Batal</button>
-      <button class="btn-cbt btn-cbt-primary" onclick="submitAddLecturer()"><i class="bi bi-check-lg"></i> Simpan & Aktifkan Akun</button>
+      <button class="btn-cbt btn-cbt-primary" onclick="submitAddLecturer()"><i class="bi bi-check-lg"></i> Simpan Data Dosen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalAddAdmin">
+  <div class="modal-cbt">
+    <div class="modal-header-cbt"><span id="modalAdminTitle"><i class="bi bi-shield-plus"></i> Tambah Email Administrator</span>
+      <button class="btn-cbt-ghost" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalAddAdmin')">&times;</button></div>
+    <div class="modal-body-cbt">
+      <input type="hidden" id="editAdminId" value="">
+      <label class="field-label">Nama Administrator *</label>
+      <input type="text" id="newAdminName" class="input-cbt" placeholder="Admin Utama Pusat Bahasa" required>
+      <div style="height:14px;"></div>
+      <label class="field-label">Email Terdaftar (Hak Akses Penuh Admin) *</label>
+      <input type="email" id="newAdminEmail" class="input-cbt" placeholder="admin.utama@kampus.ac.id" required>
+      <small style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Hanya daftarkan alamat email yang tepercaya dan rahasia karena login Admin memiliki akses penuh tanpa kata sandi.</small>
+    </div>
+    <div class="modal-footer-cbt">
+      <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalAddAdmin')">Batal</button>
+      <button class="btn-cbt btn-cbt-primary" onclick="submitAddAdmin()"><i class="bi bi-check-lg"></i> Simpan Administrator</button>
     </div>
   </div>
 </div>

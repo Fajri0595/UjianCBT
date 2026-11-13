@@ -69,7 +69,7 @@ Aplikasi ini menggunakan arsitektur web modern **Serverless REST API + Database 
 
 Untuk panduan lengkap langkah demi langkah menghubungkan ke GitHub, Vercel, dan mengaktifkan database PostgreSQL gratis, silakan baca [PANDUAN-INSTALASI.md](docs/PANDUAN-INSTALASI.md).
 
-### Akun Awal Bawaan (Default):
-- **Super Admin**: `admin.pusatbahasa` / `admin123`
-- **Dosen Penguji**: `dosen.aris` / `dosen123`
+### Akun Awal Bawaan (Default — Login Email Terdaftar Tanpa Password):
+- **Super Admin**: `admin@cbtbahasa.id`
+- **Dosen Penguji**: `dosen.aris@cbtbahasa.id`
 - **Peserta Ujian Demo**: Kode Akses `LANG-DEMO`
