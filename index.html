@@ -395,12 +395,28 @@
 <div id="view-staff-app" class="app-shell" style="display:none;">
   <nav class="app-sidebar" id="staffSidebar">
     <div class="brand">
-      <div class="auth-logo" style="width:36px;height:36px;font-size:16px;border-radius:10px;margin:0;"><i class="bi bi-mortarboard-fill"></i></div>
-      <div><div class="name">CBT Bahasa</div><div class="sub" id="staffPortalLabel">Dosen Portal</div></div>
+      <div class="brand-logo"><i class="bi bi-mortarboard-fill"></i></div>
+      <div class="brand-text">
+        <div class="name">CBT Bahasa</div>
+        <div class="sub" id="staffPortalLabel">Admin Portal</div>
+      </div>
     </div>
     <div class="sidebar-nav" id="staffNavMenu"></div>
     <div class="sidebar-footer">
-      <a href="#" class="btn-logout" onclick="logoutStaff()"><i class="bi bi-box-arrow-left"></i> Keluar (Logout)</a>
+      <div class="sidebar-user-card">
+        <div class="sidebar-user-avatar" id="sidebarStaffAvatar">A</div>
+        <div class="sidebar-user-meta">
+          <div class="sidebar-user-name" id="sidebarStaffName">Administrator</div>
+          <div class="sidebar-user-sub" id="sidebarStaffEmail"><span class="online-dot"></span>Sesi Aktif</div>
+        </div>
+      </div>
+      <button type="button" class="btn-logout" onclick="logoutStaff()">
+        <span class="btn-logout-content">
+          <span class="btn-logout-icon"><i class="bi bi-power"></i></span>
+          <span class="btn-logout-label" data-i18n="btnLogoutStaff">Akhiri Sesi (Logout)</span>
+        </span>
+        <i class="bi bi-box-arrow-right btn-logout-arrow"></i>
+      </button>
     </div>
   </nav>
 
@@ -678,19 +694,19 @@
       
       <!-- Widget Monitoring Kuota & Penyimpanan Database PostgreSQL (Neon / Vercel Free Tier) -->
       <div class="db-quota-card" id="dbQuotaWidget">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.12);color:#10B981;display:flex;align-items:center;justify-content:center;font-size:18px;">
+        <div class="db-quota-header">
+          <div class="db-quota-title-group">
+            <div class="db-quota-icon">
               <i class="bi bi-database-check"></i>
             </div>
             <div>
-              <div style="font-size:14.5px;font-weight:700;font-family:'Poppins';">Status Database & Kuota Free Tier (Vercel / Neon)</div>
-              <div style="font-size:12px;color:var(--text-muted);">Monitoring kapasitas penyimpanan PostgreSQL relasional aktif secara real-time.</div>
+              <h3 class="db-quota-heading">Status Database &amp; Kuota Free Tier (Vercel / Neon)</h3>
+              <p class="db-quota-subtitle">Monitoring kapasitas penyimpanan PostgreSQL relasional aktif secara real-time.</p>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div class="db-quota-actions">
             <span class="badge-pill badge-success" id="dbStatusBadge"><span class="dot"></span>Optimal (&lt;70%)</span>
-            <button type="button" class="btn-cbt btn-cbt-ghost" style="padding:6px 12px;font-size:12px;" onclick="loadAdminDashboard()"><i class="bi bi-arrow-clockwise"></i> Segarkan</button>
+            <button type="button" class="btn-cbt btn-cbt-outline" style="padding:6px 12px;font-size:12px;" onclick="loadAdminDashboard()"><i class="bi bi-arrow-clockwise"></i> Segarkan</button>
           </div>
         </div>
 
@@ -698,13 +714,13 @@
           <div class="quota-meter-fill" id="dbQuotaMeterFill" style="width: 0.2%;"></div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
-          <span>Penyimpanan Terpakai: <strong style="color:var(--text-heading);" id="dbUsedStorage">0.00 MB</strong> / <strong>512 MB</strong> (Batas Gratis Neon/Vercel)</span>
-          <span>Penggunaan: <strong style="color:var(--primary);" id="dbPercentUsed">0.0%</strong></span>
+        <div class="db-quota-summary">
+          <span>Penyimpanan Terpakai: <strong style="color:var(--text-primary);" id="dbUsedStorage">0.00 MB</strong> dari <strong>512 MB</strong> <span style="opacity:0.8;">(Batas Gratis Neon/Vercel)</span></span>
+          <span>Persentase Kuota: <strong style="color:var(--primary);font-size:13px;" id="dbPercentUsed">0.0%</strong></span>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;background:var(--bg-canvas);padding:12px;border-radius:var(--radius-input);border:1px solid var(--border-color);" id="dbTableStatsMini">
-          <div style="font-size:11.5px;color:var(--text-muted);">Memuat metrik tabel...</div>
+        <div class="db-table-stats-grid" id="dbTableStatsMini">
+          <div style="font-size:12px;color:var(--text-muted);padding:4px;">Memuat rincian kapasitas tabel...</div>
         </div>
       </div>
       
@@ -749,7 +765,7 @@
           </div>
           <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border-color);font-size:11.5px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <span><i class="bi bi-info-circle"></i> Kategori skor mengacu pada acuan level CEFR / PBT-ITP.</span>
-            <a href="#" onclick="showSection('reports');return false;" style="color:var(--primary);font-weight:600;text-decoration:none;">Laporan Lengkap &rarr;</a>
+            <a href="#" onclick="navigateTo('reports');return false;" style="color:var(--primary);font-weight:600;text-decoration:none;">Laporan Lengkap &rarr;</a>
           </div>
         </div>
 
@@ -762,7 +778,7 @@
               </h3>
               <p style="font-size:12px;color:var(--text-muted);margin:0;">Audit trail aktivitas sistem real-time.</p>
             </div>
-            <a href="#" onclick="showSection('activityLog');return false;" style="font-size:12px;color:var(--primary);font-weight:600;text-decoration:none;">
+            <a href="#" onclick="navigateTo('activityLog');return false;" style="font-size:12px;color:var(--primary);font-weight:600;text-decoration:none;">
               Lihat Semua <i class="bi bi-chevron-right"></i>
             </a>
           </div>

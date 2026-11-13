@@ -58,7 +58,9 @@
         btnBackToStart: 'Kembali ke Awal', btnCreateExam: 'Buat Ujian Baru',
         navDashboard: 'Dashboard', navMyExamsAdmin: 'Ujian Saya (Admin)', navMyExams: 'My Exams', navLecturers: 'Staf & Akses Email',
         navParticipants: 'Peserta & Kode Akses', navCatalog: 'Katalog Ujian', navReports: 'Laporan & Rekap',
-        navActivityLog: 'Log Aktivitas', navSettings: 'Pengaturan Sistem', navBankSoal: 'Bank Soal', navRombel: 'Perbandingan Rombel'
+        navActivityLog: 'Log Aktivitas', navSettings: 'Pengaturan Sistem', navBankSoal: 'Bank Soal', navRombel: 'Perbandingan Rombel',
+        navGroupMain: 'Utama & Akademik', navGroupAccess: 'Manajemen Akses', navGroupSystem: 'Analitik & Sistem',
+        btnLogoutStaff: 'Akhiri Sesi (Logout)'
       },
       en: {
         entryTitle: 'Enter Your Details to Start', entrySubtitle: 'Complete your details and access code to begin the language exam session.',
@@ -80,7 +82,9 @@
         btnBackToStart: 'Return to Start', btnCreateExam: 'Create New Exam',
         navDashboard: 'Dashboard', navMyExamsAdmin: 'My Exams (Admin)', navMyExams: 'My Exams', navLecturers: 'Staff & Email Access',
         navParticipants: 'Participants & Codes', navCatalog: 'Exam Catalog', navReports: 'Reports & Recap',
-        navActivityLog: 'Activity Log', navSettings: 'System Settings', navBankSoal: 'Question Bank', navRombel: 'Cohort Comparison'
+        navActivityLog: 'Activity Log', navSettings: 'System Settings', navBankSoal: 'Question Bank', navRombel: 'Cohort Comparison',
+        navGroupMain: 'Main & Academic', navGroupAccess: 'Access Control', navGroupSystem: 'Analytics & System',
+        btnLogoutStaff: 'Sign Out (Logout)'
       }
     };
     
@@ -153,6 +157,29 @@
       restoreSession();
     });
     
+    function syncStaffIdentityUI(staff) {
+      if (!staff) return;
+      const isRoleAdmin = staff.role === 'admin';
+      const displayName = staff.Nama || (isRoleAdmin ? 'Administrator' : 'Dosen Penguji');
+      const initial = displayName.charAt(0).toUpperCase();
+      const roleTitle = isRoleAdmin ? 'Administrator' : 'Dosen Penguji';
+      const portalTitle = isRoleAdmin ? 'Admin Portal' : 'Dosen Portal';
+      const subText = staff.Email || roleTitle;
+
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setText('staffNameLabel', displayName);
+      setText('staffRoleLabel', roleTitle);
+      setText('staffAvatar', initial);
+      setText('staffPortalLabel', portalTitle);
+      setText('sidebarStaffAvatar', initial);
+      setText('sidebarStaffName', displayName);
+
+      const sidebarSubEl = document.getElementById('sidebarStaffEmail');
+      if (sidebarSubEl) {
+        sidebarSubEl.innerHTML = `<span class="online-dot"></span>${escapeHtml(subText)}`;
+      }
+    }
+
     function restoreSession() {
       try {
         const savedStaff = localStorage.getItem('cbt_staff');
@@ -161,10 +188,7 @@
         if (savedStaff) {
           appState.staff = JSON.parse(savedStaff);
           renderStaffSidebar(appState.staff.role);
-          document.getElementById('staffNameLabel').textContent = appState.staff.Nama;
-          document.getElementById('staffRoleLabel').textContent = appState.staff.role === 'admin' ? 'Administrator' : 'Dosen Penguji';
-          document.getElementById('staffAvatar').textContent = appState.staff.Nama.charAt(0).toUpperCase();
-          document.getElementById('staffPortalLabel').textContent = appState.staff.role === 'admin' ? 'Admin Portal' : 'Dosen Portal';
+          syncStaffIdentityUI(appState.staff);
           showView('view-staff-app');
           navigateTo(appState.staff.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
           return;
@@ -340,10 +364,7 @@
             appState.staff = res.data;
             localStorage.setItem('cbt_staff', JSON.stringify(res.data));
             renderStaffSidebar(res.data.role);
-            document.getElementById('staffNameLabel').textContent = res.data.Nama;
-            document.getElementById('staffRoleLabel').textContent = res.data.role === 'admin' ? 'Administrator' : 'Dosen Penguji';
-            document.getElementById('staffAvatar').textContent = res.data.Nama.charAt(0).toUpperCase();
-            document.getElementById('staffPortalLabel').textContent = res.data.role === 'admin' ? 'Admin Portal' : 'Dosen Portal';
+            syncStaffIdentityUI(res.data);
             showView('view-staff-app');
             navigateTo(res.data.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
           } else {
@@ -362,29 +383,45 @@
     
     const NAV_MENUS = {
       admin: [
-        { id: 'adminDashboard', icon: 'bi-speedometer2', i18n: 'navDashboard', label: 'Dashboard' },
-        { id: 'dosenDashboard', icon: 'bi-journal-text', i18n: 'navMyExamsAdmin', label: 'Ujian Saya (Admin)' },
-        { id: 'bankSoal', icon: 'bi-collection', i18n: 'navBankSoal', label: 'Bank Soal' },
-        { id: 'manageLecturers', icon: 'bi-people', i18n: 'navLecturers', label: 'Manajemen Staf & Email' },
-        { id: 'manageParticipants', icon: 'bi-key', i18n: 'navParticipants', label: 'Peserta & Kode Akses' },
-        { id: 'manageExams', icon: 'bi-journal-bookmark', i18n: 'navCatalog', label: 'Katalog Ujian' },
-        { id: 'reports', icon: 'bi-bar-chart', i18n: 'navReports', label: 'Laporan & Rekap' },
-        { id: 'rombelComparison', icon: 'bi-bar-chart-steps', i18n: 'navRombel', label: 'Perbandingan Rombel' },
-        { id: 'activityLog', icon: 'bi-shield-check', i18n: 'navActivityLog', label: 'Log Aktivitas' },
-        { id: 'systemSettings', icon: 'bi-sliders', i18n: 'navSettings', label: 'Pengaturan Sistem' }
+        { id: 'adminDashboard', icon: 'bi-grid-1x2-fill', i18n: 'navDashboard', label: 'Dashboard', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' },
+        { id: 'dosenDashboard', icon: 'bi-journal-richtext', i18n: 'navMyExamsAdmin', label: 'Ujian Saya (Admin)', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' },
+        { id: 'bankSoal', icon: 'bi-collection-fill', i18n: 'navBankSoal', label: 'Bank Soal', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' },
+        { id: 'manageExams', icon: 'bi-bookmarks-fill', i18n: 'navCatalog', label: 'Katalog Ujian', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' },
+        { id: 'manageLecturers', icon: 'bi-people-fill', i18n: 'navLecturers', label: 'Staf & Akses Email', groupI18n: 'navGroupAccess', groupLabel: 'Manajemen Akses' },
+        { id: 'manageParticipants', icon: 'bi-key-fill', i18n: 'navParticipants', label: 'Peserta & Kode Akses', groupI18n: 'navGroupAccess', groupLabel: 'Manajemen Akses' },
+        { id: 'reports', icon: 'bi-bar-chart-line-fill', i18n: 'navReports', label: 'Laporan & Rekap', groupI18n: 'navGroupSystem', groupLabel: 'Analitik & Sistem' },
+        { id: 'rombelComparison', icon: 'bi-diagram-3-fill', i18n: 'navRombel', label: 'Perbandingan Rombel', groupI18n: 'navGroupSystem', groupLabel: 'Analitik & Sistem' },
+        { id: 'activityLog', icon: 'bi-shield-check', i18n: 'navActivityLog', label: 'Log Aktivitas', groupI18n: 'navGroupSystem', groupLabel: 'Analitik & Sistem' },
+        { id: 'systemSettings', icon: 'bi-sliders2', i18n: 'navSettings', label: 'Pengaturan Sistem', groupI18n: 'navGroupSystem', groupLabel: 'Analitik & Sistem' }
       ],
       dosen: [
-        { id: 'dosenDashboard', icon: 'bi-journal-text', i18n: 'navMyExams', label: 'My Exams' },
-        { id: 'bankSoal', icon: 'bi-collection', i18n: 'navBankSoal', label: 'Bank Soal' }
+        { id: 'dosenDashboard', icon: 'bi-journal-richtext', i18n: 'navMyExams', label: 'My Exams', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' },
+        { id: 'bankSoal', icon: 'bi-collection-fill', i18n: 'navBankSoal', label: 'Bank Soal', groupI18n: 'navGroupMain', groupLabel: 'Utama & Akademik' }
       ]
     };
     
     function renderStaffSidebar(role) {
-      const menu = NAV_MENUS[role];
+      const menu = NAV_MENUS[role] || [];
       const dict = I18N[getCurrentLang()] || I18N.id;
-      document.getElementById('staffNavMenu').innerHTML = menu.map(m =>
-        `<a href="#" data-section="${m.id}" onclick="navigateTo('${m.id}');return false;"><i class="bi ${m.icon}"></i><span>${dict[m.i18n] || m.label}</span></a>`
-      ).join('');
+      let lastGroup = null;
+      const html = [];
+
+      menu.forEach(m => {
+        const groupTitle = dict[m.groupI18n] || m.groupLabel || '';
+        if (groupTitle && groupTitle !== lastGroup) {
+          html.push(`<div class="sidebar-group-label">${escapeHtml(groupTitle)}</div>`);
+          lastGroup = groupTitle;
+        }
+        const itemLabel = dict[m.i18n] || m.label;
+        html.push(
+          `<a href="#" data-section="${m.id}" onclick="navigateTo('${m.id}');return false;">` +
+            `<span class="nav-icon-wrap"><i class="bi ${m.icon}"></i></span>` +
+            `<span class="nav-label">${escapeHtml(itemLabel)}</span>` +
+          `</a>`
+        );
+      });
+
+      document.getElementById('staffNavMenu').innerHTML = html.join('');
       // pertahankan status aktif menu setelah re-render (mis. saat ganti bahasa)
       const activeSection = document.querySelector('.content-section.active');
       if (activeSection) {
@@ -1839,12 +1876,34 @@
               statusEl.innerHTML = `<span class="dot"></span>${d.dbUsage.statusText || 'Optimal (<70%)'}`;
             }
             if (tablesEl && Array.isArray(d.dbUsage.tableStats) && d.dbUsage.tableStats.length) {
-              tablesEl.innerHTML = d.dbUsage.tableStats.map(t => `
-                <div style="font-size:11.5px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border-color);padding:3px 0;">
-                  <code>${t.name}</code>
-                  <span style="color:var(--text-muted);font-weight:600;">${t.rows} baris (${t.sizeKB} KB)</span>
-                </div>
-              `).join('');
+              const DB_TABLE_META = {
+                peserta: { label: 'Data Peserta', icon: 'bi-people-fill' },
+                ujian: { label: 'Paket Ujian', icon: 'bi-journal-bookmark-fill' },
+                soal: { label: 'Butir Soal', icon: 'bi-file-earmark-text-fill' },
+                bank_soal: { label: 'Bank Soal', icon: 'bi-collection-fill' },
+                hasil_ujian: { label: 'Hasil Ujian', icon: 'bi-bar-chart-fill' },
+                dosen: { label: 'Akun Dosen', icon: 'bi-person-badge-fill' },
+                admin: { label: 'Administrator', icon: 'bi-shield-lock-fill' },
+                log_aktivitas: { label: 'Log Aktivitas', icon: 'bi-activity' },
+                pengaturan_sistem: { label: 'Pengaturan', icon: 'bi-sliders' }
+              };
+              tablesEl.innerHTML = d.dbUsage.tableStats.map(t => {
+                const rawName = String(t.name || '');
+                const meta = DB_TABLE_META[rawName] || { label: rawName, icon: 'bi-table' };
+                const rowCount = Number(t.rows) || 0;
+                const sizeKB = t.sizeKB !== undefined ? t.sizeKB : '0.0';
+                return `
+                  <div class="db-table-stat-item">
+                    <div class="db-table-stat-top">
+                      <span class="db-table-stat-title" title="${escapeHtml(meta.label)}"><i class="bi ${meta.icon}"></i> ${escapeHtml(meta.label)}</span>
+                      <span class="db-table-stat-size">${escapeHtml(String(sizeKB))} KB</span>
+                    </div>
+                    <div class="db-table-stat-bottom">
+                      <code class="db-table-stat-code" title="Tabel: ${escapeHtml(rawName)}">${escapeHtml(rawName)}</code>
+                      <span class="db-table-stat-rows">${rowCount} baris</span>
+                    </div>
+                  </div>`;
+              }).join('');
             }
           }
 
@@ -2220,8 +2279,7 @@
           appState.staff.Nama = nama;
           appState.staff.Email = email;
           localStorage.setItem('cbt_staff', JSON.stringify(appState.staff));
-          document.getElementById('staffNameLabel').textContent = nama;
-          document.getElementById('staffAvatar').textContent = nama.charAt(0).toUpperCase();
+          syncStaffIdentityUI(appState.staff);
         }
         loadAdmins();
       };
