@@ -93,11 +93,8 @@
   <!-- Right Form Pane: Participant -->
   <main class="auth-form-pane">
     <div class="auth-form-wrapper">
-      <!-- Topbar Controls (Background Picker, Language & Theme Toggle) -->
+      <!-- Topbar Controls (Language & Theme Toggle) -->
       <div class="auth-top-controls">
-        <button type="button" class="auth-action-pill" title="Ubah Foto Latar Belakang Login" onclick="openLoginBgModal()">
-          <i class="bi bi-image"></i> <span>Latar Foto</span>
-        </button>
         <button type="button" class="auth-action-pill" title="Ganti Bahasa / Switch Language" onclick="toggleLanguage()">
           <i class="bi bi-translate"></i> <span id="langToggleLabel3">ID</span>
         </button>
@@ -235,11 +232,8 @@
   <!-- Right Form Pane: Staff -->
   <main class="auth-form-pane">
     <div class="auth-form-wrapper">
-      <!-- Topbar Controls -->
+      <!-- Topbar Controls (Language & Theme Toggle) -->
       <div class="auth-top-controls">
-        <button type="button" class="auth-action-pill" title="Ubah Foto Latar Belakang Login" onclick="openLoginBgModal()">
-          <i class="bi bi-image"></i> <span>Latar Foto</span>
-        </button>
         <button type="button" class="auth-action-pill" title="Ganti Bahasa / Switch Language" onclick="toggleLanguage()">
           <i class="bi bi-translate"></i> <span id="langToggleLabel4">ID</span>
         </button>
@@ -1111,13 +1105,19 @@
               <input type="text" id="settingDirectorNIP" class="input-cbt" placeholder="198205142008012015">
             </div>
           </div>
-          <div style="margin-top:14px;">
-            <label class="field-label">Foto Latar Belakang Halaman Login (URL Gambar atau Pilih Galeri)</label>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-              <input type="text" id="settingLoginBgUrl" class="input-cbt" style="flex:1;min-width:220px;" placeholder="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=85">
-              <button type="button" class="btn-cbt btn-cbt-outline" onclick="openLoginBgModal()"><i class="bi bi-images"></i> Pilih Tema / Upload Foto</button>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px dashed var(--border-color);">
+            <label class="field-label" style="margin-bottom:8px;"><i class="bi bi-image"></i> Kustomisasi Latar Belakang Halaman Login</label>
+            <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-canvas);border:1px solid var(--border-color);border-radius:12px;padding:12px 14px;">
+              <div id="settingLoginBgPreview" style="width:128px;height:74px;border-radius:9px;background-image:var(--auth-bg-image);background-size:cover;background-position:center;border:1px solid var(--border-color);flex-shrink:0;box-shadow:var(--shadow-sm);"></div>
+              <div style="flex:1;min-width:240px;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <input type="text" id="settingLoginBgUrl" class="input-cbt" style="flex:1;min-width:200px;" placeholder="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=85" oninput="if(this.value.trim()) applyLoginBackground(this.value.trim(), false)">
+                  <button type="button" class="btn-cbt btn-cbt-primary" onclick="openLoginBgModal()"><i class="bi bi-images"></i> Pilih Tema / Upload Foto</button>
+                  <button type="button" class="btn-cbt btn-cbt-ghost" onclick="resetLoginBgDefault()" title="Kembalikan Foto Default"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
+                </div>
+                <div class="field-help" style="margin-top:6px;">Hanya Admin yang dapat mengubah foto latar halaman login. Perubahan akan diterapkan secara terpusat untuk seluruh peserta dan dosen.</div>
+              </div>
             </div>
-            <div class="field-help">Gunakan foto gedung kampus, perpustakaan, atau laboratorium bahasa institusi Anda. Kosongkan untuk memakai foto bawaan.</div>
           </div>
         </div>
 

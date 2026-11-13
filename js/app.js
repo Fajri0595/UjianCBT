@@ -3173,15 +3173,10 @@
       const safeCssUrl = cleanUrl.replace(/["'()\\]/g, '\\$&');
       document.documentElement.style.setProperty('--auth-bg-image', `url("${safeCssUrl}")`);
 
-      const matchedPreset = LOGIN_BG_PRESETS.find(p => p.url === cleanUrl);
-      const captionLabel = matchedPreset
-        ? matchedPreset.label
-        : (cleanUrl.startsWith('data:image/') ? 'Foto Kampus Kustom' : 'Latar Institusi Kustom');
-
-      ['authBgCaption1', 'authBgCaption2'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = `<i class="bi bi-camera"></i> ${escapeHtml(captionLabel)}`;
-      });
+      const previewEl = document.getElementById('settingLoginBgPreview');
+      if (previewEl) {
+        previewEl.style.backgroundImage = `url("${safeCssUrl}")`;
+      }
 
       const settingInput = document.getElementById('settingLoginBgUrl');
       if (settingInput && !cleanUrl.startsWith('data:image/')) {
