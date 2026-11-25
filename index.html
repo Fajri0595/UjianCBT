@@ -188,7 +188,7 @@
                 </button>
               </div>
               <div id="staffPinHint" style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">
-                <i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.
+                <i class="bi bi-info-circle" aria-hidden="true"></i> Pilih salah satu: masuk dengan <strong>Email + PIN</strong> (PIN awal <code>123456</code>), atau langsung klik <strong>Masuk dengan Akun Google</strong>.
               </div>
             </div>
 
@@ -1071,12 +1071,11 @@
               <div class="field-help">Kosongkan sementara jika belum dibuat (login Email + PIN 6 digit tetap aktif penuh).</div>
             </div>
             <div>
-              <label class="field-label" for="settingGoogleAuthMode">Kebijakan Keamanan Saat Login Google</label>
+              <label class="field-label" for="settingGoogleAuthMode">Metode Login Staf</label>
               <select id="settingGoogleAuthMode" class="input-cbt">
-                <option value="google_plus_pin" selected>Gabungan 2 Lapis: Verifikasi Google OAuth + PIN 6 Digit (Rekomendasi)</option>
-                <option value="google_direct">Single Sign-On: Masuk Langsung jika Email Google Terdaftar</option>
+                <option value="google_direct" selected>Pilih Salah Satu: Google OAuth ATAU Email + PIN</option>
               </select>
-              <div class="field-help">Mode gabungan mewajibkan verifikasi kepemilikan akun Google sekaligus PIN 6 digit staf.</div>
+              <div class="field-help">Staf bisa masuk langsung dengan akun Google terdaftar, atau dengan Email + PIN 6 digit (tidak berlapis).</div>
             </div>
           </div>
 

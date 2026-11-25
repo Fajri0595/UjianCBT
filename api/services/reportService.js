@@ -1,6 +1,6 @@
-/**
+﻿/**
  * ============================================================
- * CBT BAHASA — Layanan Laporan & Pengaturan (Reports & Settings Services)
+ * CBT BAHASA â€” Layanan Laporan & Pengaturan (Reports & Settings Services)
  * ============================================================
  */
 
@@ -78,7 +78,7 @@ async function getAllExamsAdmin() {
 async function reassignExamLecturer(idUjian, idDosenBaru) {
   const finalVal = idDosenBaru && idDosenBaru.trim() !== '' ? idDosenBaru : 'ADMIN';
   await query(`UPDATE ujian SET "ID_Dosen_Pembuat" = $1 WHERE "ID_Ujian" = $2`, [finalVal, idUjian]);
-  await logActivity('Administrator', 'Admin', 'Ubah Dosen Pengampu', `${idUjian} → ${finalVal}`);
+  await logActivity('Administrator', 'Admin', 'Ubah Dosen Pengampu', `${idUjian} â†’ ${finalVal}`);
   return createResponse(true, { ID_Dosen_Pembuat: finalVal }, 'Penugasan dosen berhasil diperbarui.');
 }
 
@@ -234,9 +234,9 @@ async function getActivityLog(limit) {
   return createResponse(true, rows, 'OK');
 }
 
-// ────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // 9. PENGATURAN SISTEM & UPLOAD MEDIA
-// ────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getSystemSettings() {
   const { rows } = await query('SELECT * FROM pengaturan_sistem');
   const config = {};
@@ -247,7 +247,7 @@ async function getSystemSettings() {
   }
   config.hasEnvGoogleClientId = Boolean((process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim()) || DEFAULT_GOOGLE_CLIENT_ID);
   if (!config.googleAuthMode) {
-    config.googleAuthMode = 'google_plus_pin';
+    config.googleAuthMode = 'google_direct';
   }
 
   const auth = getAuthContext();
@@ -260,7 +260,7 @@ async function getSystemSettings() {
         institutionName: config.institutionName || '',
         loginBgUrl: config.loginBgUrl || '',
         googleClientId: config.googleClientId || '',
-        googleAuthMode: config.googleAuthMode || 'google_plus_pin',
+        googleAuthMode: config.googleAuthMode || 'google_direct',
         scoringMode: config.scoringMode || 'toefl_itp',
         skalaMin: config.skalaMin || '310',
         skalaMax: config.skalaMax || '677'

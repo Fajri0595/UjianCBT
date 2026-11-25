@@ -309,7 +309,7 @@ async function ensureSchema() {
       ['skalaMin', '310'],
       ['skalaMax', '677'],
       ['appName', 'CBT Bahasa'],
-      ['googleAuthMode', 'google_plus_pin'],
+      ['googleAuthMode', 'google_direct'],
       ['googleClientId', DEFAULT_GOOGLE_CLIENT_ID]
     ];
 

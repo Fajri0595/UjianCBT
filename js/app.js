@@ -1,11 +1,11 @@
-// ============================================================
-// CBT BAHASA — app.js (Single Page Application Client)
+﻿// ============================================================
+// CBT BAHASA â€” app.js (Single Page Application Client)
 // Arsitektur: Frontend Modern SPA + REST API Backend (Node.js & PostgreSQL)
 // ============================================================
 
-// ════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // STATE GLOBAL
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     const appState = {
       participant: null,        // { ID_Peserta, Nama, Kontak, ID_Ujian_Target }
       staff: null,               // { ID_Dosen/ID_Admin, Nama, Email, role }
@@ -32,11 +32,11 @@
       currentQuestionSesiForForm: null // dipakai form Kelola Soal
     };
     
-    // ════════════════════════════════════════════════════════
-    // I18N — KAMUS TERJEMAHAN (Indonesia / English)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // I18N â€” KAMUS TERJEMAHAN (Indonesia / English)
     // Cakupan: label & judul utama antarmuka (chrome), bukan seluruh konten
-    // dinamis (mis. isi tabel/toast) — lihat catatan di ringkasan pengembangan.
-    // ════════════════════════════════════════════════════════
+    // dinamis (mis. isi tabel/toast) â€” lihat catatan di ringkasan pengembangan.
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     const I18N = {
       id: {
         portalHeading: 'Sistem Ujian Kemahiran Kebahasaan',
@@ -50,7 +50,7 @@
         trustHeadset: 'Siapkan perangkat audio/headset', trustAutosave: 'Auto-save jawaban aktif',
         hAvailableExams: 'Ujian Tersedia', hReviewAnswers: 'Tinjau Jawaban Anda', pReviewAnswers: 'Pastikan seluruh soal terisi sebelum submit final.',
         hExamCompleted: 'Ujian Selesai!', hMyExams: 'Ujian Saya', pMyExams: 'Kelola paket ujian kebahasaan yang Anda buat.',
-        hAdminDashboard: 'Dashboard Admin — Pusat Layanan Bahasa', pAdminDashboard: 'Ringkasan operasional sistem CBT secara real-time.',
+        hAdminDashboard: 'Dashboard Admin â€” Pusat Layanan Bahasa', pAdminDashboard: 'Ringkasan operasional sistem CBT secara real-time.',
         hManageLecturers: 'Manajemen Staf & Akses Email', pManageLecturers: 'Kelola daftar email Administrator dan Dosen Penguji yang diizinkan masuk langsung ke sistem CBT.',
         hManageParticipants: 'Manajemen Peserta & Kode Akses', pManageParticipants: 'Kelola token peserta agar sesi ujian tetap privat per-rombel.',
         hManageExams: 'Katalog & Pengawasan Semua Ujian', pManageExams: 'Pantau seluruh ujian yang dibuat oleh semua dosen.',
@@ -81,7 +81,7 @@
         trustHeadset: 'Prepare headset / audio device', trustAutosave: 'Real-time answer auto-save',
         hAvailableExams: 'Available Exams', hReviewAnswers: 'Review Your Answers', pReviewAnswers: 'Make sure all questions are answered before final submit.',
         hExamCompleted: 'Exam Completed!', hMyExams: 'My Exams', pMyExams: 'Manage the language exam packages you have created.',
-        hAdminDashboard: 'Admin Dashboard — Language Service Center', pAdminDashboard: 'Real-time operational summary of the CBT system.',
+        hAdminDashboard: 'Admin Dashboard â€” Language Service Center', pAdminDashboard: 'Real-time operational summary of the CBT system.',
         hManageLecturers: 'Staff & Email Access Management', pManageLecturers: 'Manage registered Administrator and Lecturer email addresses allowed to sign in directly to the CBT system.',
         hManageParticipants: 'Participant & Access Code Management', pManageParticipants: 'Manage participant tokens to keep exam sessions private per class.',
         hManageExams: 'Exam Catalog & Oversight', pManageExams: 'Monitor all exams created by every lecturer.',
@@ -123,9 +123,9 @@
       showToast(next === 'id' ? 'Bahasa Diubah' : 'Language Changed', next === 'id' ? 'Antarmuka kini dalam Bahasa Indonesia.' : 'Interface is now in English.', 'success');
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // DARK MODE
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function getCurrentTheme() { return localStorage.getItem('cbt_theme') || 'light'; }
 
     function getChartThemeColors() {
@@ -207,9 +207,9 @@
       applyTheme(next);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // INIT
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     document.addEventListener('DOMContentLoaded', () => {
       applyTheme(getCurrentTheme());
       applyLanguage(getCurrentLang());
@@ -332,9 +332,9 @@
       });
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // TOAST
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function showToast(title, msg, type) {
       const container = document.getElementById('toastContainer');
       const el = document.createElement('div');
@@ -348,9 +348,9 @@
     function openModal(id) { document.getElementById(id).classList.add('show'); }
     function closeModal(id) { document.getElementById(id).classList.remove('show'); }
     
-    // ════════════════════════════════════════════════════════
-    // AUTH — SMOOTH FLUID TAB SWITCHING & MOTION CHOREOGRAPHY
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // AUTH â€” SMOOTH FLUID TAB SWITCHING & MOTION CHOREOGRAPHY
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     let _authSwitchTimer = null;
 
     function switchAuthTab(targetTab, opts) {
@@ -468,8 +468,8 @@
       }
     }
 
-    // AUTH — PESERTA
-    // ════════════════════════════════════════════════════════
+    // AUTH â€” PESERTA
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function handleParticipantEntry(e) {
       e.preventDefault();
       const nama = document.getElementById('pNama').value.trim();
@@ -490,7 +490,7 @@
       const saved = localStorage.getItem('cbt_participant');
       let existingToken = '';
       try { existingToken = saved ? JSON.parse(saved).token || '' : ''; } catch (err) {}
-      const deviceInfo = `${navigator.platform || 'Device'} — ${navigator.userAgent.substring(0, 80)}`;
+      const deviceInfo = `${navigator.platform || 'Device'} â€” ${navigator.userAgent.substring(0, 80)}`;
     
       gasRun
         .withSuccessHandler(res => {
@@ -535,10 +535,10 @@
       showView('view-participant-entry');
     }
     
-    // ════════════════════════════════════════════════════════
-    // AUTH — STAFF (HYBRID GOOGLE SIGN-IN OAUTH + EMAIL & PIN 6 DIGIT)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // AUTH â€” STAFF (HYBRID GOOGLE SIGN-IN OAUTH + EMAIL & PIN 6 DIGIT)
     // Mendukung Deteksi Email Tersimpan & Fast Google Auto-Login Tanpa Pilih Akun Ulang
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     const DEFAULT_GOOGLE_CLIENT_ID = '715988750915-qpagfqfi1k90kbt6v1327ccotp1c19rp.apps.googleusercontent.com';
     const REMEMBERED_STAFF_KEY = 'cbt_remembered_staff';
     let _pendingGoogleIdToken = null;
@@ -600,7 +600,7 @@
         emailInput.value = remembered.email;
       }
       if (hint && remembered.deviceTrustToken) {
-        hint.innerHTML = '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini — klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.';
+        hint.innerHTML = '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini â€” klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.';
       }
     }
 
@@ -660,7 +660,7 @@
       }
       const pinInput = document.getElementById('sPin');
       if (pinInput) {
-        pinInput.placeholder = '••••••';
+        pinInput.placeholder = 'â€¢â€¢â€¢â€¢â€¢â€¢';
       }
       const pinLabel = document.getElementById('lblStaffPinDynamic');
       if (pinLabel) {
@@ -670,8 +670,8 @@
       const hint = document.getElementById('staffPinHint');
       if (hint) {
         hint.innerHTML = (remembered && remembered.deviceTrustToken)
-          ? '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini — klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.'
-          : '<i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.';
+          ? '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini â€” klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.'
+          : '<i class="bi bi-info-circle" aria-hidden="true"></i> Pilih salah satu: masuk dengan <strong>Email + PIN</strong> (PIN awal <code>123456</code>), atau langsung klik <strong>Masuk dengan Akun Google</strong>.';
       }
       const btn = document.getElementById('btnStaffLoginSubmit');
       if (btn) {
@@ -967,7 +967,7 @@
                 btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
               }
               if (hint) {
-                hint.innerHTML = '<i class="bi bi-shield-lock" style="color:var(--primary);"></i> Verifikasi PIN satu kali di browser ini — login Google berikutnya akan langsung masuk otomatis.';
+                hint.innerHTML = '<i class="bi bi-shield-lock" style="color:var(--primary);"></i> Verifikasi PIN satu kali di browser ini â€” login Google berikutnya akan langsung masuk otomatis.';
               }
               showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda satu kali untuk menyimpan perangkat ini.', 'success');
             }
@@ -993,7 +993,7 @@
       errBox.style.display = 'none';
 
       if (!/^\d{6}$/.test(pin)) {
-        errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> PIN keamanan harus terdiri dari tepat 6 digit angka (0–9).';
+        errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> PIN keamanan harus terdiri dari tepat 6 digit angka (0â€“9).';
         errBox.style.display = 'block';
         return;
       }
@@ -1149,9 +1149,9 @@
       }
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // SPA NAVIGATION
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function navigateTo(sectionId) {
       document.querySelectorAll('.content-section').forEach(s => {
         s.classList.remove('active', 'page-enter-active');
@@ -1191,9 +1191,9 @@
       if (loaders[sectionId]) loaders[sectionId]();
     }
     
-    // ════════════════════════════════════════════════════════
-    // PESERTA — DAFTAR UJIAN
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // PESERTA â€” DAFTAR UJIAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadAvailableExams() {
       document.getElementById('examListContainer').innerHTML = `<div class="skeleton" style="height:140px;margin-bottom:14px;"></div><div class="skeleton" style="height:140px;"></div>`;
       gasRun
@@ -1243,9 +1243,9 @@
       }).join('');
     }
     
-    // ════════════════════════════════════════════════════════
-    // PESERTA — SESI UJIAN & STANDAR KEBAHASAAN
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // PESERTA â€” SESI UJIAN & STANDAR KEBAHASAAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // Kunci localStorage untuk auto-save progres ujian (namespaced per ujian
     // agar tidak bentrok jika peserta pernah mengerjakan >1 ujian di browser yang sama).
     function getDraftAnswersKey(idUjian) { return `cbt_draft_answers_${idUjian}`; }
@@ -1276,7 +1276,7 @@
       }
     }
     
-    // ── Sound Check (Uji Coba Headset Sebelum Ujian) ──
+    // â”€â”€ Sound Check (Uji Coba Headset Sebelum Ujian) â”€â”€
     let _testAudioCtx = null;
     let _testOscillator = null;
     let _testGainNode = null;
@@ -1519,9 +1519,9 @@
       document.getElementById('timerCard').classList.toggle('warning', appState.timerSecondsLeft < 300);
     }
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // CLOUD AUTO-SAVE & KETAHANAN KONEKSI (POSTGRESQL + LOCALSTORAGE)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     let _cloudSyncDebounceTimer = null;
     let _isCloudSyncInFlight = false;
 
@@ -1606,9 +1606,9 @@
       }, 25000);
     }
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // AKSESIBILITAS: PENGATUR UKURAN FONT (A- / A / A+)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function setFontScale(scale) {
       appState.fontScale = scale;
       localStorage.setItem('cbt_font_scale', scale);
@@ -1630,9 +1630,9 @@
       if (activeBtn) activeBtn.classList.add('active');
     }
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // PROTEKSI INTEGRITAS & ANTI-CURANG (FULLSCREEN & TAB-SWITCH)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     let _examProtectionHandlers = null;
     let _lastViolationAt = 0;
     window._isSubmittingExam = false;
@@ -1778,9 +1778,9 @@
       doSubmitExam();
     }
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // FITUR RAGU-RAGU (FLAG QUESTION)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function toggleFlagCurrentQuestion() {
       const q = appState.examQuestions[appState.currentQuestionIndex];
       if (!q) return;
@@ -1821,9 +1821,9 @@
       }
     }
 
-    // ════════════════════════════════════════════════════════
-    // AUDIO LISTENING — PLAY COUNT RESTRICTION & LIFECYCLE
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // AUDIO LISTENING â€” PLAY COUNT RESTRICTION & LIFECYCLE
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function stopAllQuestionAudio() {
       const audios = document.querySelectorAll('#examQuestionDynamicWrap audio');
       audios.forEach(a => {
@@ -1903,7 +1903,7 @@
     const SESI_ICON = { Listening: 'bi-headphones', 'Grammar-Structure': 'bi-pencil-square', Grammar: 'bi-pencil-square', Structure: 'bi-pencil-square', Reading: 'bi-book' };
     const SESI_LABEL = { Listening: 'Section 1: Listening', 'Grammar-Structure': 'Section 2: Structure', Grammar: 'Section 2: Structure', Structure: 'Section 2: Structure', Reading: 'Section 3: Reading' };
     
-    // ── Helper: Sanitasi HTML & Atribut JS Ketat (Anti-XSS) ──
+    // â”€â”€ Helper: Sanitasi HTML & Atribut JS Ketat (Anti-XSS) â”€â”€
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -2183,7 +2183,7 @@
           
           if (isFlagged) {
             styleBg = 'background:#F59E0B;border-color:#D97706;color:#1a1305;';
-            badgeFlag = '<span style="font-size:9px;display:block;">🚩 Ragu</span>';
+            badgeFlag = '<span style="font-size:9px;display:block;">ðŸš© Ragu</span>';
           } else if (answered) {
             styleBg = 'background:var(--primary);border-color:var(--primary);color:#fff;';
             badgeFlag = `<span style="font-size:9px;display:block;opacity:.85;">Pilih ${escapeHtml(appState.answers[x.q.ID_Soal])}</span>`;
@@ -2201,7 +2201,7 @@
     function confirmSubmitExam() {
       const totalUnanswered = appState.examQuestions.filter(q => !appState.answers[q.ID_Soal]).length;
       document.getElementById('submitWarningDetail').innerHTML = totalUnanswered > 0
-        ? `⚠️ Terdapat <strong>${totalUnanswered} soal</strong> yang belum terisi. Setelah dikonfirmasi, kode akses akan dikunci dan jawaban tidak dapat diubah lagi.`
+        ? `âš ï¸ Terdapat <strong>${totalUnanswered} soal</strong> yang belum terisi. Setelah dikonfirmasi, kode akses akan dikunci dan jawaban tidak dapat diubah lagi.`
         : `Seluruh soal telah terjawab. Setelah dikonfirmasi, kode akses akan dikunci dan jawaban tidak dapat diubah lagi.`;
       openModal('modalConfirmSubmitExam');
     }
@@ -2284,9 +2284,9 @@
         .submitExamAnswers(appState.participant.ID_Peserta, appState.participant.Nama, appState.currentExam.ID_Ujian, appState.answers, appState.examStartTimeISO);
     }
     
-    // ════════════════════════════════════════════════════════
-    // DOSEN — DASHBOARD (juga dipakai Admin untuk "Ujian Saya")
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // DOSEN â€” DASHBOARD (juga dipakai Admin untuk "Ujian Saya")
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     
     // Admin memiliki ID pemilik virtual 'ADMIN' agar bisa membuat & mengelola ujian
     // sendiri layaknya Dosen, tanpa perlu menugaskan ke dosen manapun.
@@ -2332,7 +2332,7 @@
             document.getElementById('dosenExamTableBody').innerHTML = exams.length ? exams.map(u => `
               <tr>
                 <td><strong>${escapeHtml(u.Nama_Ujian || '(Tanpa Nama)')}</strong><div style="font-size:11.5px;color:var(--text-muted);">ID: ${escapeHtml(u.ID_Ujian)}</div></td>
-                <td>${Number(u.jumlahSesi) || 0} Sesi · ${Number(u.jumlahSoal) || 0} Soal</td>
+                <td>${Number(u.jumlahSesi) || 0} Sesi Â· ${Number(u.jumlahSoal) || 0} Soal</td>
                 <td>${statusBadge(u.Status)}</td>
                 <td>${Number(u.pesertaSelesai) || 0}</td>
                 <td>${formatDate(u.Tanggal_Buka)}</td>
@@ -2491,9 +2491,9 @@
         .deleteExam(idUjian);
     }
     
-    // ════════════════════════════════════════════════════════
-    // DOSEN — UPLOAD CSV
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // DOSEN â€” UPLOAD CSV
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openUploadCsv(idUjian, namaUjian) {
       window._currentUploadExamId = idUjian;
       document.getElementById('uploadCsvExamName').textContent = namaUjian;
@@ -2516,7 +2516,7 @@
     let selectedCsvFile = null;
     function handleCsvSelected(e) {
       selectedCsvFile = e.target.files[0];
-      if (selectedCsvFile) document.getElementById('csvFileName').textContent = '📄 ' + selectedCsvFile.name;
+      if (selectedCsvFile) document.getElementById('csvFileName').textContent = 'ðŸ“„ ' + selectedCsvFile.name;
     }
     
     function validateAndPreviewCsv() {
@@ -2565,9 +2565,9 @@
         .importQuestionsBatch(window._currentUploadExamId, appState.csvParsedQuestions);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // UPLOAD AUDIO KE CLOUD STORAGE (Vercel Blob / Storage)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -2585,7 +2585,7 @@
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
         showToast(
           'Ukuran Audio Terlalu Besar',
-          `File "${file.name}" berukuran ${sizeMB} MB (batas payload Vercel Serverless maksimal 3.2 MB). Kompres MP3 ke bitrate 64–96 kbps atau gunakan URL audio eksternal.`,
+          `File "${file.name}" berukuran ${sizeMB} MB (batas payload Vercel Serverless maksimal 3.2 MB). Kompres MP3 ke bitrate 64â€“96 kbps atau gunakan URL audio eksternal.`,
           'warning'
         );
         return false;
@@ -2593,7 +2593,7 @@
       return true;
     }
 
-    // Dipakai di halaman Upload CSV — hasil link ditampilkan untuk disalin manual ke kolom Link_Audio
+    // Dipakai di halaman Upload CSV â€” hasil link ditampilkan untuk disalin manual ke kolom Link_Audio
     function handleAudioFileSelected(event) {
       const file = event.target.files[0];
       if (!validateAudioFileBeforeUpload(file)) { event.target.value = ''; return; }
@@ -2620,7 +2620,7 @@
       }).catch(() => showToast('Error', 'Gagal membaca file audio.', 'danger'));
     }
     
-    // Dipakai di dalam modal Edit/Tambah Soal — otomatis mengisi field Link_Audio setelah upload selesai
+    // Dipakai di dalam modal Edit/Tambah Soal â€” otomatis mengisi field Link_Audio setelah upload selesai
     function handleQfAudioSelected(event) {
       const file = event.target.files[0];
       if (!validateAudioFileBeforeUpload(file)) { event.target.value = ''; return; }
@@ -2633,7 +2633,7 @@
             if (!res) { statusEl.textContent = ''; showToast('Koneksi Terputus', 'Tidak ada respons dari server saat upload audio.', 'danger'); return; }
             if (!res.success) { statusEl.textContent = ''; showToast('Gagal', res.message, 'danger'); return; }
             document.getElementById('qfLinkAudio').value = res.data.fileUrl;
-            statusEl.textContent = '✅ Audio berhasil diupload & link terisi otomatis.';
+            statusEl.textContent = 'âœ… Audio berhasil diupload & link terisi otomatis.';
             showToast('Berhasil', 'Audio berhasil diupload.', 'success');
           })
           .withFailureHandler(err => { statusEl.textContent = ''; showToast('Error', err.message, 'danger'); })
@@ -2641,9 +2641,9 @@
       }).catch(() => showToast('Error', 'Gagal membaca file audio.', 'danger'));
     }
     
-    // ════════════════════════════════════════════════════════
-    // KELOLA SOAL — EDIT / TAMBAH / HAPUS SOAL INDIVIDUAL
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // KELOLA SOAL â€” EDIT / TAMBAH / HAPUS SOAL INDIVIDUAL
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openManageQuestions(idUjian, namaUjian) {
       if (!idUjian) { showToast('Peringatan', 'Pilih ujian terlebih dahulu.', 'warning'); return; }
       window._manageQuestionsExamId = idUjian;
@@ -2760,9 +2760,9 @@
         .deleteQuestion(idSoal);
     }
     
-    // ════════════════════════════════════════════════════════
-    // DOSEN — HASIL UJIAN
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // DOSEN â€” HASIL UJIAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openExamResults(idUjian, namaUjian) {
       window._currentResultsExamId = idUjian;
       document.getElementById('resultsExamNameLabel').textContent = namaUjian;
@@ -2817,9 +2817,9 @@
       link.click();
     }
     
-    // ════════════════════════════════════════════════════════
-    // ADMIN — DASHBOARD
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” DASHBOARD
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadAdminDashboard() {
       gasRun
         .withSuccessHandler(res => {
@@ -2838,7 +2838,7 @@
           document.getElementById('adminStatCards').innerHTML =
             statCard('bi-people-fill', 'icon-bg-teal', totalPeserta, 'Total Peserta Terdaftar', '<i class="bi bi-person-check"></i> Terdaftar di sistem') +
             statCard('bi-clipboard2-check', 'icon-bg-amber', ujianAktif, 'Ujian Aktif Berjalan', '<i class="bi bi-broadcast"></i> Sesi siap diakses') +
-            statCard('bi-bar-chart-line', 'icon-bg-indigo', rataRata, 'Rata-rata Skor Institusi', '<i class="bi bi-award"></i> Skala TOEFL 310–677') +
+            statCard('bi-bar-chart-line', 'icon-bg-indigo', rataRata, 'Rata-rata Skor Institusi', '<i class="bi bi-award"></i> Skala TOEFL 310â€“677') +
             statCard('bi-percent', 'icon-bg-coral', tingkatKelulusan + '%', 'Tingkat Kelulusan', `<i class="bi bi-check-circle"></i> ${totalLulus} dari ${totalSelesai} siswa lulus`);
 
           // Update badge total selesai di header analitik
@@ -3122,7 +3122,7 @@
       }).join('') + '</div>';
     }
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadLecturers() {
       loadAdmins();
       gasRun
@@ -3363,12 +3363,12 @@
       }).catch(() => showToast('Gagal', 'Tidak dapat menyalin otomatis, silakan salin manual.', 'warning'));
     }
     
-    // ════════════════════════════════════════════════════════
-    // ADMIN — PESERTA & KODE AKSES
-    // ════════════════════════════════════════════════════════
-    // ════════════════════════════════════════════════════════
-    // ADMIN — PESERTA & KODE AKSES (UI/UX PROFESIONAL)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” PESERTA & KODE AKSES
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” PESERTA & KODE AKSES (UI/UX PROFESIONAL)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     window._participantFilter = {
       status: 'Aktif', // DEFAULT: Hanya tampilkan kode aktif/siap pakai agar kode terpakai otomatis tersembunyi
       search: '',
@@ -3740,9 +3740,9 @@
         .getParticipantResultDetail(idPeserta);
     }
     
-    // ════════════════════════════════════════════════════════
-    // CETAK / UNDUH KODE AKSES — supaya tidak perlu dibagikan satu per satu
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // CETAK / UNDUH KODE AKSES â€” supaya tidak perlu dibagikan satu per satu
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openPrintCodesModal() { openModal('modalPrintCodes'); }
     
     function getExamNameById(idUjian) {
@@ -3776,9 +3776,9 @@
           @media print { .toolbar { display: none; } body { margin: 10mm; } }
         </style>
       </head><body>
-        <div class="toolbar"><button onclick="window.print()">🖨️ Cetak Sekarang</button></div>
+        <div class="toolbar"><button onclick="window.print()">ðŸ–¨ï¸ Cetak Sekarang</button></div>
         <h1>${headingText}</h1>
-        <div class="subtitle">CBT Bahasa — Total ${codesData.length} kode akses. Gunting/potong tiap kartu sesuai garis putus-putus untuk dibagikan satu per satu ke peserta.</div>
+        <div class="subtitle">CBT Bahasa â€” Total ${codesData.length} kode akses. Gunting/potong tiap kartu sesuai garis putus-putus untuk dibagikan satu per satu ke peserta.</div>
         <div class="grid">${cardsHtml}</div>
       </body></html>`;
     }
@@ -3787,7 +3787,7 @@
       const idUjian = document.getElementById('printCodesExamSelect').value;
       const format = document.getElementById('printCodesFormatSelect')?.value || 'a4';
       const all = window._participantsCache || [];
-      // Hanya kode yang BELUM diakses (status 'Aktif') yang boleh dicetak/dibagikan —
+      // Hanya kode yang BELUM diakses (status 'Aktif') yang boleh dicetak/dibagikan â€”
       // kode yang sudah 'Used' atau 'Expired' tidak berguna lagi untuk peserta baru.
       let filtered = idUjian ? all.filter(p => p.ID_Ujian_Target === idUjian) : all;
       filtered = filtered.filter(p => p.Status_Kode === 'Aktif');
@@ -3800,7 +3800,7 @@
         ujian: getExamNameById(p.ID_Ujian_Target)
       }));
     
-      const heading = idUjian ? `Kode Akses — ${getExamNameById(idUjian)}` : 'Kode Akses — Semua Ujian';
+      const heading = idUjian ? `Kode Akses â€” ${getExamNameById(idUjian)}` : 'Kode Akses â€” Semua Ujian';
       const instName = appState.systemSettings?.institutionName || 'PUSAT LAYANAN BAHASA CBT';
       const win = window.open('', '_blank');
 
@@ -3835,7 +3835,7 @@
           </style>
         </head><body>
           <div style="text-align:center;margin-bottom:12px;" class="btn-print">
-            <button onclick="window.print()" style="padding:8px 18px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Seluruh Slip Thermal (${codesData.length})</button>
+            <button onclick="window.print()" style="padding:8px 18px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">ðŸ–¨ï¸ Cetak Seluruh Slip Thermal (${codesData.length})</button>
           </div>
           ${slipsHtml}
         </body></html>`);
@@ -3873,7 +3873,7 @@
       closeModal('modalPrintCodes');
     }
 
-    // ── Distribusi WhatsApp & Cetak Struk Thermal (Skill Enhancement) ──
+    // â”€â”€ Distribusi WhatsApp & Cetak Struk Thermal (Skill Enhancement) â”€â”€
     function sendWhatsAppCode(idPeserta) {
       const p = (window._participantsCache || []).find(x => x.ID_Peserta === idPeserta);
       if (!p) return;
@@ -3884,7 +3884,7 @@
       let cleanPhone = (p.Kontak || '').replace(/[^0-9]/g, '');
       if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.slice(1);
 
-      const text = `Halo *${p.Nama || 'Peserta Ujian'}*,\n\nBerikut adalah informasi akun CBT Kebahasaan Anda:\n🏛️ *Instansi*: ${instName}\n📝 *Paket Ujian*: ${examName}\n🏷️ *Rombel*: ${p.Rombel || 'Umum'}\n🔑 *Kode Akses*: *${p.Kode_Akses}*\n🌐 *Link Ujian*: ${url}\n\nSilakan buka tautan di atas dan masukkan kode akses Anda untuk login. Simpan pesan ini dengan baik.\nSemoga sukses dalam ujian!`;
+      const text = `Halo *${p.Nama || 'Peserta Ujian'}*,\n\nBerikut adalah informasi akun CBT Kebahasaan Anda:\nðŸ›ï¸ *Instansi*: ${instName}\nðŸ“ *Paket Ujian*: ${examName}\nðŸ·ï¸ *Rombel*: ${p.Rombel || 'Umum'}\nðŸ”‘ *Kode Akses*: *${p.Kode_Akses}*\nðŸŒ *Link Ujian*: ${url}\n\nSilakan buka tautan di atas dan masukkan kode akses Anda untuk login. Simpan pesan ini dengan baik.\nSemoga sukses dalam ujian!`;
 
       const waUrl = cleanPhone 
         ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`
@@ -3908,9 +3908,9 @@
       const instName = appState.systemSettings?.institutionName || 'Pusat Layanan Bahasa CBT';
       const url = window.location.origin;
 
-      let text = `📢 *DAFTAR KODE AKSES UJIAN CBT*\n🏛️ *Instansi*: ${instName}\n📝 *Ujian*: ${examName}\n🌐 *Link Login*: ${url}\n\n`;
+      let text = `ðŸ“¢ *DAFTAR KODE AKSES UJIAN CBT*\nðŸ›ï¸ *Instansi*: ${instName}\nðŸ“ *Ujian*: ${examName}\nðŸŒ *Link Login*: ${url}\n\n`;
       filtered.forEach((p, idx) => {
-        text += `${idx + 1}. *${p.Nama || 'Peserta'}* (${p.Rombel || 'Umum'}) ➔ Kode: \`${p.Kode_Akses}\`\n`;
+        text += `${idx + 1}. *${p.Nama || 'Peserta'}* (${p.Rombel || 'Umum'}) âž” Kode: \`${p.Kode_Akses}\`\n`;
       });
       text += `\n_Harap login tepat waktu dan simpan kode akses Anda masing-masing._`;
 
@@ -3943,7 +3943,7 @@
         </style>
       </head><body>
         <div style="text-align:center;margin-bottom:10px;" class="btn-print">
-          <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Slip Thermal</button>
+          <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">ðŸ–¨ï¸ Cetak Slip Thermal</button>
         </div>
         <div class="thermal-slip">
           <div class="title">${escapeHtml(instName)}</div>
@@ -3990,7 +3990,7 @@
             </style>
           </head><body>
             <div style="text-align:center;margin-bottom:10px;" class="btn-print">
-              <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">🖨️ Cetak Bukti Nilai Thermal</button>
+              <button onclick="window.print()" style="padding:7px 16px;font-weight:bold;cursor:pointer;background:#0F766E;color:#fff;border:none;border-radius:6px;">ðŸ–¨ï¸ Cetak Bukti Nilai Thermal</button>
             </div>
             <div class="thermal-slip">
               <div class="title">${escapeHtml(instName)}</div>
@@ -4039,14 +4039,14 @@
     function printNewBatchNow(codes, examName) {
       const codesData = codes.map(k => ({ nama: '', kode: k, ujian: examName }));
       const win = window.open('', '_blank');
-      win.document.write(buildPrintableCodesHtml(codesData, `Kode Akses Baru — ${examName}`));
+      win.document.write(buildPrintableCodesHtml(codesData, `Kode Akses Baru â€” ${examName}`));
       win.document.close();
       closeModal('modalGeneric');
     }
     
-    // ════════════════════════════════════════════════════════
-    // ADMIN — KATALOG SEMUA UJIAN
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” KATALOG SEMUA UJIAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadAllExamsAdmin() {
       gasRun
         .withSuccessHandler(res => {
@@ -4064,7 +4064,7 @@
             window._allExamsCache = res.data;
             document.getElementById('allExamsTableBody').innerHTML = res.data.length ? res.data.map(u => `
               <tr>
-                <td><strong>${escapeHtml(u.Nama_Ujian || '(Tanpa Nama)')}</strong><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.ID_Ujian)} · ${Number(u.jumlahSesi) || 0} Sesi · ${Number(u.jumlahSoal) || 0} Soal</div></td>
+                <td><strong>${escapeHtml(u.Nama_Ujian || '(Tanpa Nama)')}</strong><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.ID_Ujian)} Â· ${Number(u.jumlahSesi) || 0} Sesi Â· ${Number(u.jumlahSoal) || 0} Soal</div></td>
                 <td>${escapeHtml(u.namaDosen || '-')}</td>
                 <td>${formatDate(u.Tanggal_Buka)}</td>
                 <td>${Number(u.pesertaSelesai) || 0}/${Number(u.totalPeserta) || 0}</td>
@@ -4119,9 +4119,9 @@
         .reassignExamLecturer(window._reassignTargetExamId, idDosenBaru);
     }
     
-    // ════════════════════════════════════════════════════════
-    // ADMIN — LAPORAN GLOBAL
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” LAPORAN GLOBAL
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadGlobalReport() {
       const filterUjian = document.getElementById('reportExamFilter').value;
       gasRun
@@ -4152,9 +4152,9 @@
       }).getAllExamsAdmin();
     }
     
-    // ════════════════════════════════════════════════════════
-    // ADMIN — LOG AKTIVITAS
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ADMIN â€” LOG AKTIVITAS
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function loadActivityLog() {
       gasRun
         .withSuccessHandler(res => {
@@ -4169,9 +4169,9 @@
         .getActivityLog(100);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // KUSTOMISASI FOTO LATAR BELAKANG LOGIN & PENGATURAN SISTEM
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     const DEFAULT_LOGIN_BG_URL = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1920&q=85';
     const LOGIN_BG_PRESETS = [
       {
@@ -4388,7 +4388,7 @@
       setVal('settingDirectorNIP', data.directorNIP, '');
       setVal('settingLoginBgUrl', data.loginBgUrl, DEFAULT_LOGIN_BG_URL);
       setVal('settingGoogleClientId', data.googleClientId, DEFAULT_GOOGLE_CLIENT_ID);
-      setVal('settingGoogleAuthMode', data.googleAuthMode, 'google_plus_pin');
+      setVal('settingGoogleAuthMode', data.googleAuthMode, 'google_direct');
 
       const originHint = document.getElementById('currentOriginHint');
       if (originHint && window.location && window.location.origin) {
@@ -4442,7 +4442,7 @@
         directorNIP: document.getElementById('settingDirectorNIP').value.trim(),
         loginBgUrl: (document.getElementById('settingLoginBgUrl') ? document.getElementById('settingLoginBgUrl').value.trim() : '') || DEFAULT_LOGIN_BG_URL,
         googleClientId: document.getElementById('settingGoogleClientId') ? document.getElementById('settingGoogleClientId').value.trim() : '',
-        googleAuthMode: document.getElementById('settingGoogleAuthMode') ? document.getElementById('settingGoogleAuthMode').value : 'google_plus_pin'
+        googleAuthMode: document.getElementById('settingGoogleAuthMode') ? document.getElementById('settingGoogleAuthMode').value : 'google_direct'
       };
 
       // Terapkan langsung ke lingkungan aplikasi aktif
@@ -4456,9 +4456,9 @@
         .saveSystemSettings(settings);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // DIAGNOSTIK SISTEM
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function runDiagnostics() {
       const box = document.getElementById('diagnosticsResult');
       box.innerHTML = `<div class="skeleton" style="height:80px;"></div>`;
@@ -4497,7 +4497,7 @@
     
           box.innerHTML = `
             <div style="background:${d.ok ? 'var(--success-bg)' : 'var(--warning-bg)'};color:${d.ok ? 'var(--success-text)' : 'var(--warning-text)'};border-radius:var(--radius-input);padding:14px;font-size:13px;margin-bottom:14px;">
-              <strong><i class="bi ${d.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}"></i> ${d.ok ? 'Sistem sehat — koneksi API & struktur tabel database PostgreSQL normal.' : 'Ditemukan masalah pada struktur tabel database.'}</strong>
+              <strong><i class="bi ${d.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}"></i> ${d.ok ? 'Sistem sehat â€” koneksi API & struktur tabel database PostgreSQL normal.' : 'Ditemukan masalah pada struktur tabel database.'}</strong>
             </div>
             <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
               Mesin Database: <strong>${d.databaseType || 'PostgreSQL Relasional (Neon/Vercel)'}</strong><br>
@@ -4523,9 +4523,9 @@
         .runDiagnostics();
     }
     
-    // ════════════════════════════════════════════════════════
-    // ITEM ANALYSIS — statistik tingkat kesulitan per butir soal
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ITEM ANALYSIS â€” statistik tingkat kesulitan per butir soal
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openItemAnalysis(idUjian, namaUjian) {
       if (!idUjian) { showToast('Peringatan', 'Pilih ujian terlebih dahulu.', 'warning'); return; }
       document.getElementById('itemAnalysisExamName').textContent = namaUjian || idUjian;
@@ -4557,7 +4557,7 @@
               ${statCard('bi-emoji-smile', 'icon-bg-success', mudah, 'Soal Kategori Mudah')}
               ${statCard('bi-emoji-neutral', 'icon-bg-amber', sedang, 'Soal Kategori Sedang')}
               ${statCard('bi-emoji-frown', 'icon-bg-coral', sulit, 'Soal Kategori Sulit')}
-              ${statCard('bi-check2-all', 'icon-bg-indigo', dayaPembedaBaik, 'Daya Pembeda Baik (D ≥ 0.30)')}
+              ${statCard('bi-check2-all', 'icon-bg-indigo', dayaPembedaBaik, 'Daya Pembeda Baik (D â‰¥ 0.30)')}
             </div>`;
     
           const difficultyBadge = { Mudah: 'badge-success', Sedang: 'badge-warning', Sulit: 'badge-danger' };
@@ -4577,7 +4577,7 @@
                 <span style="font-weight:700;color:${dColor};">${dVal}</span>
                 <div style="font-size:10.5px;color:var(--text-muted);">${it.dayaPembedaKategori || '-'}</div>
               </td>
-              <td style="font-size:11.5px;">A:${it.distribusi.A} · B:${it.distribusi.B} · C:${it.distribusi.C} · D:${it.distribusi.D} · Kosong:${it.distribusi.Kosong}</td>
+              <td style="font-size:11.5px;">A:${it.distribusi.A} Â· B:${it.distribusi.B} Â· C:${it.distribusi.C} Â· D:${it.distribusi.D} Â· Kosong:${it.distribusi.Kosong}</td>
             </tr>`;
           }).join('');
         })
@@ -4585,9 +4585,9 @@
         .getItemAnalysis(idUjian);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // BANK SOAL TERPUSAT
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function initBankSoalPage() {
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
@@ -4676,7 +4676,7 @@
             if (!res) { statusEl.textContent = ''; showToast('Koneksi Terputus', 'Tidak ada respons dari server.', 'danger'); return; }
             if (!res.success) { statusEl.textContent = ''; showToast('Gagal', res.message, 'danger'); return; }
             document.getElementById('bfLinkAudio').value = res.data.fileUrl;
-            statusEl.textContent = '✅ Audio berhasil diupload & link terisi otomatis.';
+            statusEl.textContent = 'âœ… Audio berhasil diupload & link terisi otomatis.';
           })
           .withFailureHandler(err => { statusEl.textContent = ''; showToast('Error', err.message, 'danger'); })
           .uploadAudioToDrive(base64, file.name, file.type || 'audio/mpeg');
@@ -4750,7 +4750,7 @@
     let selectedBankCsvFile = null;
     function handleBankCsvSelected(event) {
       selectedBankCsvFile = event.target.files[0];
-      if (selectedBankCsvFile) document.getElementById('bankCsvFileName').textContent = '📄 ' + selectedBankCsvFile.name;
+      if (selectedBankCsvFile) document.getElementById('bankCsvFileName').textContent = 'ðŸ“„ ' + selectedBankCsvFile.name;
     }
     
     let parsedBankCsvQuestions = [];
@@ -4792,9 +4792,9 @@
         .importBankSoalBatch(parsedBankCsvQuestions, idOwner);
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // TARIK SOAL DARI BANK SOAL KE UJIAN (Manual / Acak)
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openPullFromBankModal() {
       if (!window._manageQuestionsExamId) { showToast('Peringatan', 'Buka halaman Kelola Soal untuk ujian tertentu terlebih dahulu.', 'warning'); return; }
       switchPullTab('random');
@@ -4827,7 +4827,7 @@
               <input type="checkbox" class="pull-manual-checkbox" value="${escapeHtml(b.ID_Bank)}" style="margin-top:3px;">
               <div>
                 <span class="badge-pill badge-indigo" style="margin-right:6px;">${escapeHtml(b.Sesi)}</span>
-                <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(b.Topik || 'Umum')} · ${escapeHtml(b.Level_Kesulitan || 'Sedang')}</span>
+                <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(b.Topik || 'Umum')} Â· ${escapeHtml(b.Level_Kesulitan || 'Sedang')}</span>
                 <div style="font-size:13px;margin-top:4px;">${escapeHtml((b.Pertanyaan || '').substring(0, 100))}</div>
               </div>
             </label>`).join('') : `<div class="empty-state">Tidak ada soal di Bank Soal untuk filter ini.</div>`;
@@ -4872,9 +4872,9 @@
       }
     }
     
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // PERBANDINGAN PERFORMA ANTAR ROMBEL
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function initRombelComparisonPage() {
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
@@ -4941,9 +4941,9 @@
           // Render Tabel Leaderboard Rombel
           tbody.innerHTML = data.map((r, idx) => {
             let rankBadge = '<span class="badge-rank rank-normal">' + (idx + 1) + '</span>';
-            if (idx === 0) rankBadge = '<span class="badge-rank rank-gold" title="Peringkat 1">🥇 1</span>';
-            else if (idx === 1) rankBadge = '<span class="badge-rank rank-silver" title="Peringkat 2">🥈 2</span>';
-            else if (idx === 2) rankBadge = '<span class="badge-rank rank-bronze" title="Peringkat 3">🥉 3</span>';
+            if (idx === 0) rankBadge = '<span class="badge-rank rank-gold" title="Peringkat 1">ðŸ¥‡ 1</span>';
+            else if (idx === 1) rankBadge = '<span class="badge-rank rank-silver" title="Peringkat 2">ðŸ¥ˆ 2</span>';
+            else if (idx === 2) rankBadge = '<span class="badge-rank rank-bronze" title="Peringkat 3">ðŸ¥‰ 3</span>';
 
             const passingPct = Number(r.tingkatKelulusan) || 0;
             const barColor = passingPct >= 75 ? '#10B981' : (passingPct >= 50 ? '#0D9488' : '#F59E0B');
@@ -4961,7 +4961,7 @@
                   <span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:var(--primary);">${r.rataRata}</span>
                 </td>
                 <td style="text-align:center;">
-                  <span style="font-size:12.5px;color:var(--text-muted);font-weight:500;">${r.terendah} — ${r.tertinggi}</span>
+                  <span style="font-size:12.5px;color:var(--text-muted);font-weight:500;">${r.terendah} â€” ${r.tertinggi}</span>
                 </td>
                 <td style="text-align:center;">
                   <span class="badge-pill badge-success" style="font-size:11px;" title="Jumlah Lulus"><i class="bi bi-check-circle"></i> ${r.lulus} Lulus</span>
@@ -5098,9 +5098,9 @@
     }
 
 
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // IMPORT PESERTA MASSAL VIA CSV
-    // ════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     function openImportParticipantsModal() {
       document.getElementById('pesertaCsvFileName').textContent = '';
       document.getElementById('pesertaCsvValidationResult').innerHTML = '';
@@ -5124,7 +5124,7 @@
     let selectedPesertaCsvFile = null;
     function handlePesertaCsvSelected(event) {
       selectedPesertaCsvFile = event.target.files[0];
-      if (selectedPesertaCsvFile) document.getElementById('pesertaCsvFileName').textContent = '📄 ' + selectedPesertaCsvFile.name;
+      if (selectedPesertaCsvFile) document.getElementById('pesertaCsvFileName').textContent = 'ðŸ“„ ' + selectedPesertaCsvFile.name;
     }
     
     let parsedPesertaCsv = [];

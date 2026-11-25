@@ -406,7 +406,10 @@ async function staffLoginGoogle(role, idToken, rawPinOptional, deviceTrustToken)
     Boolean(deviceTrustToken) &&
     verifyDeviceTrustToken(deviceTrustToken, user[idCol], resolvedRoleKey, email);
 
-  const requirePinLayer = authMode !== 'google_direct' && !isTrustedRememberedDevice;
+  // Login Google berdiri sendiri (tidak berlapis): akun Google terverifikasi langsung masuk tanpa PIN.
+  // Email + PIN tetap tersedia sebagai metode alternatif terpisah.
+  void authMode;
+  const requirePinLayer = false;
 
   if (requirePinLayer) {
     const pinStr = String(rawPinOptional || '').trim();
