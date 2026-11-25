@@ -5,7 +5,7 @@
  */
 
 const { query, queryOne, ensureSchema, getPool } = require('../db');
-const { getAuthContext } = require('../auth');
+const { getAuthContext, DEFAULT_GOOGLE_CLIENT_ID } = require('../auth');
 const { createResponse, logActivity } = require('./common');
 
 async function runDiagnostics() {
@@ -242,10 +242,10 @@ async function getSystemSettings() {
   const config = {};
   rows.forEach((r) => (config[r.Key] = r.Value));
 
-  if (!config.googleClientId && process.env.GOOGLE_CLIENT_ID) {
-    config.googleClientId = process.env.GOOGLE_CLIENT_ID.trim();
+  if (!config.googleClientId) {
+    config.googleClientId = (process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID || '').trim();
   }
-  config.hasEnvGoogleClientId = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim());
+  config.hasEnvGoogleClientId = Boolean((process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim()) || DEFAULT_GOOGLE_CLIENT_ID);
   if (!config.googleAuthMode) {
     config.googleAuthMode = 'google_plus_pin';
   }

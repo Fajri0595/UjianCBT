@@ -6,7 +6,7 @@
  */
 
 const { Pool } = require('pg');
-const { hashPin } = require('./auth');
+const { hashPin, DEFAULT_GOOGLE_CLIENT_ID } = require('./auth');
 
 let pool = null;
 
@@ -239,7 +239,7 @@ async function ensureSchema() {
 
     const initialBootstrapPinHash = hashPin('123456');
 
-    // 2. Injeksi Akun Admin Awal hanya jika tabel admin benar-benar kosong
+    // 2. Injeksi Akun Admin Awal hanya jika tabel admin benar-benar kosong (atau backfill email bawaan jika kosong)
     const adminCheck = await query('SELECT count(*) FROM admin');
     if (parseInt(adminCheck.rows[0].count, 10) === 0) {
       await query(
@@ -247,9 +247,17 @@ async function ensureSchema() {
          VALUES ($1, $2, $3, $4, $5, TRUE)`,
         ['ADM-001', 'Super Admin CBT', 'admin.pusatbahasa', 'admin@cbtbahasa.id', initialBootstrapPinHash]
       );
+    } else {
+      await query(`
+        UPDATE admin
+        SET "Email" = 'admin@cbtbahasa.id'
+        WHERE ("ID_Admin" = 'ADM-001' OR "Username" = 'admin.pusatbahasa')
+          AND ("Email" IS NULL OR TRIM("Email") = '')
+          AND NOT EXISTS (SELECT 1 FROM admin WHERE LOWER(TRIM("Email")) = 'admin@cbtbahasa.id')
+      `);
     }
 
-    // 3. Injeksi Akun Dosen Awal hanya jika tabel dosen benar-benar kosong
+    // 3. Injeksi Akun Dosen Awal hanya jika tabel dosen benar-benar kosong (atau backfill email bawaan jika kosong)
     const dosenCheck = await query('SELECT count(*) FROM dosen');
     if (parseInt(dosenCheck.rows[0].count, 10) === 0) {
       await query(
@@ -257,20 +265,28 @@ async function ensureSchema() {
          VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
         ['DSN-001', 'Dr. Aris Munandar, M.Hum.', 'dosen.aris', 'dosen.aris@cbtbahasa.id', initialBootstrapPinHash, 'Aktif']
       );
+    } else {
+      await query(`
+        UPDATE dosen
+        SET "Email" = 'dosen.aris@cbtbahasa.id'
+        WHERE ("ID_Dosen" = 'DSN-001' OR "Username" = 'dosen.aris')
+          AND ("Email" IS NULL OR TRIM("Email") = '')
+          AND NOT EXISTS (SELECT 1 FROM dosen WHERE LOWER(TRIM("Email")) = 'dosen.aris@cbtbahasa.id')
+      `);
     }
 
-    // Migrasi aman untuk akun staf lama yang belum memiliki PIN (Password_Hash kosong)
-    // Diberikan PIN awal '123456' ter-hash scrypt + penanda wajib ganti PIN saat login
+    // Migrasi komprehensif untuk seluruh akun staf lama (termasuk akun dengan hash SHA-256 password lama non-scrypt)
+    // agar seluruh akun yang belum memiliki PIN 6-digit scrypt otomatis mendapat PIN awal '123456' + wajib ganti PIN.
     await query(
       `UPDATE admin
-       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE
-       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = ''`,
+       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE, "Failed_Attempts" = 0, "Locked_Until" = NULL
+       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = '' OR "Password_Hash" NOT LIKE 'scrypt$%'`,
       [initialBootstrapPinHash]
     );
     await query(
       `UPDATE dosen
-       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE
-       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = ''`,
+       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE, "Failed_Attempts" = 0, "Locked_Until" = NULL
+       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = '' OR "Password_Hash" NOT LIKE 'scrypt$%'`,
       [initialBootstrapPinHash]
     );
 
@@ -286,14 +302,15 @@ async function ensureSchema() {
       }
     }
 
-    // 5. Injeksi Pengaturan Sistem Default
+    // 5. Injeksi Pengaturan Sistem Default & Google OAuth Client ID
     const defaultSettings = [
       ['passingScoreDefault', '500'],
       ['durasiDefault', '115'],
       ['skalaMin', '310'],
       ['skalaMax', '677'],
       ['appName', 'CBT Bahasa'],
-      ['googleAuthMode', 'google_plus_pin']
+      ['googleAuthMode', 'google_plus_pin'],
+      ['googleClientId', DEFAULT_GOOGLE_CLIENT_ID]
     ];
 
     for (const [key, val] of defaultSettings) {
@@ -302,6 +319,24 @@ async function ensureSchema() {
          VALUES ($1, $2)
          ON CONFLICT ("Key") DO NOTHING`,
         [key, val]
+      );
+    }
+
+    // Isi otomatis Google Client ID jika baris pengaturan sebelumnya masih kosong
+    await query(
+      `UPDATE pengaturan_sistem SET "Value" = $1 WHERE "Key" = 'googleClientId' AND TRIM("Value") = ''`,
+      [DEFAULT_GOOGLE_CLIENT_ID]
+    );
+
+    // One-time unlock untuk membersihkan percobaan gagal dari transisi migrasi PIN pertama (v5.2)
+    const migFlag = await queryOne(`SELECT "Value" FROM pengaturan_sistem WHERE "Key" = 'authPinMigrationVersion'`);
+    if (!migFlag || migFlag.Value !== 'v5.2') {
+      await query(`UPDATE admin SET "Failed_Attempts" = 0, "Locked_Until" = NULL`);
+      await query(`UPDATE dosen SET "Failed_Attempts" = 0, "Locked_Until" = NULL`);
+      await query(
+        `INSERT INTO pengaturan_sistem ("Key", "Value")
+         VALUES ('authPinMigrationVersion', 'v5.2')
+         ON CONFLICT ("Key") DO UPDATE SET "Value" = 'v5.2'`
       );
     }
 

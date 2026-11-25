@@ -395,6 +395,9 @@
         outgoingPanel.setAttribute('aria-hidden', 'true');
         incomingPanel.classList.add('is-active');
         incomingPanel.removeAttribute('aria-hidden');
+        if (isStaff && typeof initGoogleSignInButton === 'function') {
+          requestAnimationFrame(() => initGoogleSignInButton());
+        }
         return;
       }
 
@@ -420,6 +423,10 @@
 
       incomingPanel.removeAttribute('aria-hidden');
       incomingPanel.classList.add('is-active', 'is-entering', isStaff ? 'is-entering-from-right' : 'is-entering-from-left');
+
+      if (isStaff && typeof initGoogleSignInButton === 'function') {
+        requestAnimationFrame(() => initGoogleSignInButton());
+      }
 
       const targetHeight = incomingPanel.offsetHeight + padY;
       // Force layout read so browser interpolates height smoothly
@@ -519,7 +526,9 @@
     // ════════════════════════════════════════════════════════
     // AUTH — STAFF (HYBRID GOOGLE SIGN-IN OAUTH + EMAIL & PIN 6 DIGIT)
     // ════════════════════════════════════════════════════════
+    const DEFAULT_GOOGLE_CLIENT_ID = '715988750915-qpagfqfi1k90kbt6v1327ccotp1c19rp.apps.googleusercontent.com';
     let _pendingGoogleIdToken = null;
+    let _pendingFirstPinSetup = false;
     let _renderedGoogleClientId = null;
 
     function setStaffRole(role) {
@@ -546,12 +555,26 @@
 
     function clearPendingGoogleToken() {
       _pendingGoogleIdToken = null;
+      _pendingFirstPinSetup = false;
       const chip = document.getElementById('googleVerifiedChip');
       if (chip) chip.style.display = 'none';
       const emailInput = document.getElementById('sEmail');
       if (emailInput) {
         emailInput.readOnly = false;
         emailInput.value = '';
+      }
+      const pinInput = document.getElementById('sPin');
+      if (pinInput) {
+        pinInput.placeholder = '••••••';
+      }
+      const pinLabel = document.getElementById('lblStaffPinDynamic');
+      if (pinLabel) {
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        pinLabel.textContent = (I18N[lang] && I18N[lang].lblStaffPin) || 'PIN Keamanan (6 Digit)';
+      }
+      const hint = document.getElementById('staffPinHint');
+      if (hint) {
+        hint.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.';
       }
       const btn = document.getElementById('btnStaffLoginSubmit');
       if (btn) {
@@ -586,10 +609,15 @@
       }
     }
 
+    function getActiveGoogleClientId() {
+      return String((appState.systemSettings && appState.systemSettings.googleClientId) || DEFAULT_GOOGLE_CLIENT_ID || '').trim();
+    }
+
     function initGoogleSignInButton() {
-      const clientId = String((appState.systemSettings && appState.systemSettings.googleClientId) || '').trim();
+      const clientId = getActiveGoogleClientId();
       const mount = document.getElementById('googleSignInBtnMount');
       const fallbackBtn = document.getElementById('googleFallbackBtn');
+      const staffPanel = document.getElementById('authPanelStaff');
       if (!mount || !fallbackBtn) return;
 
       if (!clientId) {
@@ -602,6 +630,12 @@
 
       if (!(window.google && window.google.accounts && window.google.accounts.id)) {
         fallbackBtn.style.display = '';
+        return;
+      }
+
+      // Tunda render tombol iframe GIS sampai tab Dosen & Staf benar-benar tampil (agar lebar tombol presisi & tidak 0px)
+      const isStaffPanelVisible = staffPanel && (staffPanel.classList.contains('is-active') || staffPanel.classList.contains('is-entering'));
+      if (!isStaffPanelVisible) {
         return;
       }
 
@@ -618,6 +652,8 @@
           ux_mode: 'popup',
           auto_select: false
         });
+        const wrapWidth = (mount.parentElement && mount.parentElement.clientWidth) ? mount.parentElement.clientWidth : 360;
+        const targetBtnWidth = Math.min(390, Math.max(240, Math.floor(wrapWidth)));
         mount.innerHTML = '';
         window.google.accounts.id.renderButton(mount, {
           type: 'standard',
@@ -626,7 +662,7 @@
           text: 'signin_with',
           shape: 'rectangular',
           logo_alignment: 'left',
-          width: 390
+          width: targetBtnWidth
         });
         mount.classList.add('is-ready');
         fallbackBtn.style.display = 'none';
@@ -640,24 +676,21 @@
     window.initGoogleSignInButton = initGoogleSignInButton;
 
     function handleGoogleFallbackClick() {
-      const clientId = String((appState.systemSettings && appState.systemSettings.googleClientId) || '').trim();
+      const clientId = getActiveGoogleClientId();
       if (!clientId) {
         showToast(
           'Google Client ID Belum Diisi',
-          'Silakan masuk menggunakan Email & PIN 6 digit terlebih dahulu. Anda dapat menghubungkan Google Client ID kapan saja di menu Pengaturan Sistem Admin.',
+          'Silakan masuk menggunakan Email & PIN awal 123456 terlebih dahulu.',
           'info'
         );
-        const pinInput = document.getElementById('sPin');
-        const emailInput = document.getElementById('sEmail');
-        if (emailInput && !emailInput.value.trim()) emailInput.focus();
-        else if (pinInput) pinInput.focus();
         return;
       }
       if (window.google && window.google.accounts && window.google.accounts.id) {
+        _renderedGoogleClientId = null;
         initGoogleSignInButton();
         window.google.accounts.id.prompt();
       } else {
-        showToast('Memuat Layanan Google', 'Pustaka Google Sign-In sedang dimuat, periksa koneksi internet Anda.', 'warning');
+        showToast('Memuat Layanan Google', 'Pustaka Google Sign-In sedang dimuat, periksa koneksi internet Anda atau coba klik sekali lagi.', 'warning');
       }
     }
 
@@ -667,8 +700,15 @@
       const errBox = document.getElementById('staffLoginError');
       if (errBox) errBox.style.display = 'none';
 
-      const currentPin = (document.getElementById('sPin')?.value || '').trim();
+      const currentPin = (document.getElementById('sPin')?.value || '').replace(/\D/g, '').trim();
       const btn = document.getElementById('btnStaffLoginSubmit');
+      const resetSubmitLabel = () => {
+        if (!btn) return;
+        btn.disabled = false;
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email & PIN';
+        btn.innerHTML = `<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
+      };
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Akun Google...';
@@ -676,12 +716,13 @@
 
       gasRun
         .withSuccessHandler(res => {
-          if (btn) btn.disabled = false;
           if (!res) {
+            resetSubmitLabel();
             showToast('Koneksi Terputus', 'Gagal menghubungi server saat memverifikasi Google Sign-In.', 'danger');
             return;
           }
           if (!res.success) {
+            resetSubmitLabel();
             clearPendingGoogleToken();
             if (errBox) {
               errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message);
@@ -691,7 +732,9 @@
           }
           // Jika kebijakan sistem mewajibkan 2 lapis (Google OAuth + PIN 6 Digit)
           if (res.data && res.data.requirePinStep) {
+            if (btn) btn.disabled = false;
             _pendingGoogleIdToken = idToken;
+            _pendingFirstPinSetup = Boolean(res.data.isFirstPinSetup);
             const chip = document.getElementById('googleVerifiedChip');
             const chipText = document.getElementById('googleVerifiedEmailText');
             if (chip && chipText) {
@@ -703,19 +746,35 @@
               emailInput.value = res.data.email;
               emailInput.readOnly = true;
             }
-            if (btn) {
-              btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
-            }
+            const pinLabel = document.getElementById('lblStaffPinDynamic');
             const pinInput = document.getElementById('sPin');
+            const hint = document.getElementById('staffPinHint');
+
+            if (_pendingFirstPinSetup) {
+              if (pinLabel) pinLabel.textContent = 'Buat PIN Keamanan Baru (6 Digit)';
+              if (pinInput) pinInput.placeholder = 'Ketik 6 angka PIN baru Anda';
+              if (hint) {
+                hint.innerHTML = '<i class="bi bi-shield-check" style="color:var(--success);"></i> <span style="color:var(--success);font-weight:600;">Login pertama terdeteksi:</span> Ketik 6 angka PIN pribadi pilihan Anda di atas, lalu tekan tombol di bawah.';
+              }
+              if (btn) {
+                btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Simpan PIN Baru &amp; Masuk</span>';
+              }
+              showToast('Buat PIN Baru Anda', 'Akun Google terverifikasi! Ketik 6 angka PIN pilihan Anda lalu klik Simpan PIN Baru & Masuk.', 'success');
+            } else {
+              if (btn) {
+                btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
+              }
+              showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi berlapis.', 'success');
+            }
+
             if (pinInput) pinInput.focus();
-            showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi berlapis.', 'success');
             return;
           }
 
           completeStaffLoginSuccess(res.data);
         })
         .withFailureHandler(err => {
-          if (btn) btn.disabled = false;
+          resetSubmitLabel();
           showToast('Error Google OAuth', err.message, 'danger');
         })
         .staffLoginGoogle(appState.staffRole, idToken, currentPin);
@@ -724,12 +783,12 @@
     function handleStaffLogin(e) {
       e.preventDefault();
       const email = document.getElementById('sEmail').value.trim().toLowerCase();
-      const pin = (document.getElementById('sPin')?.value || '').trim();
+      const pin = (document.getElementById('sPin')?.value || '').replace(/\D/g, '').trim();
       const errBox = document.getElementById('staffLoginError');
       errBox.style.display = 'none';
 
       if (!/^\d{6}$/.test(pin)) {
-        errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> PIN keamanan harus terdiri dari tepat 6 digit angka.';
+        errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> PIN keamanan harus terdiri dari tepat 6 digit angka (0–9).';
         errBox.style.display = 'block';
         return;
       }
@@ -738,7 +797,9 @@
       const restoreLoginBtn = () => {
         btn.disabled = false;
         if (_pendingGoogleIdToken) {
-          btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
+          btn.innerHTML = _pendingFirstPinSetup
+            ? '<i class="bi bi-shield-check"></i> <span>Simpan PIN Baru &amp; Masuk</span>'
+            : '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
           return;
         }
         const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
@@ -4114,7 +4175,7 @@
       setVal('settingDirectorName', data.directorName, '');
       setVal('settingDirectorNIP', data.directorNIP, '');
       setVal('settingLoginBgUrl', data.loginBgUrl, DEFAULT_LOGIN_BG_URL);
-      setVal('settingGoogleClientId', data.googleClientId, '');
+      setVal('settingGoogleClientId', data.googleClientId, DEFAULT_GOOGLE_CLIENT_ID);
       setVal('settingGoogleAuthMode', data.googleAuthMode, 'google_plus_pin');
 
       const originHint = document.getElementById('currentOriginHint');

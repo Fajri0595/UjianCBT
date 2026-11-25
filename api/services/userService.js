@@ -6,6 +6,7 @@
 
 const { query, queryOne } = require('../db');
 const {
+  DEFAULT_GOOGLE_CLIENT_ID,
   getAuthContext,
   generateSessionToken,
   generateId,
@@ -80,7 +81,7 @@ async function getConfiguredGoogleAuthSettings() {
   );
   const map = {};
   rows.forEach((r) => (map[r.Key] = r.Value));
-  const clientId = String(map.googleClientId || process.env.GOOGLE_CLIENT_ID || '').trim();
+  const clientId = String(map.googleClientId || process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID || '').trim();
   const authMode = String(map.googleAuthMode || 'google_plus_pin').trim();
   return { clientId, authMode };
 }
@@ -239,7 +240,19 @@ async function staffLogin(role, rawEmail, rawPin) {
     [email]
   );
   if (!user) {
-    return createResponse(false, null, `Email "${email}" tidak terdaftar sebagai ${roleTitle}. Hubungi Administrator.`);
+    if (isRoleAdmin) {
+      const onlyBootstrap = await queryOne(
+        `SELECT COUNT(*)::int AS total, MAX(LOWER(TRIM("Email"))) AS single_email FROM admin`
+      );
+      if (onlyBootstrap && onlyBootstrap.total === 1 && onlyBootstrap.single_email === 'admin@cbtbahasa.id') {
+        return createResponse(
+          false,
+          null,
+          `Email "${email}" belum terdaftar. Untuk login pertama pada sistem baru, masuk terlebih dahulu menggunakan email bawaan "admin@cbtbahasa.id" dan PIN awal 123456, lalu ubah ke email Google Anda di menu Staf & Akses Email.`
+        );
+      }
+    }
+    return createResponse(false, null, `Email "${email}" tidak terdaftar sebagai ${roleTitle}. Pastikan tab peran (Administrator / Dosen) sudah sesuai.`);
   }
 
   if (!isRoleAdmin && user.Status !== 'Aktif') {
@@ -249,13 +262,35 @@ async function staffLogin(role, rawEmail, rawPin) {
   const lockMsg = getLockoutErrorMessage(user);
   if (lockMsg) return createResponse(false, null, lockMsg);
 
-  const isPinValid = verifyPin(pinStr, user.Password_Hash);
+  // Pastikan bila akun lama belum memiliki hash scrypt, anggap PIN awalnya '123456'
+  const hasScryptPin = user.Password_Hash && String(user.Password_Hash).startsWith('scrypt$');
+  const isFirstTimeAccount = Boolean(user.Must_Change_Pin) || !hasScryptPin;
+  const isPinValid = hasScryptPin
+    ? verifyPin(pinStr, user.Password_Hash)
+    : pinStr === '123456';
+
   if (!isPinValid) {
+    if (isFirstTimeAccount) {
+      return createResponse(
+        false,
+        null,
+        'Akun ini belum mengatur PIN pribadi. Masukkan PIN awal 123456 untuk masuk pertama kali, atau klik tombol "Masuk dengan Akun Google" di bawah untuk langsung membuat PIN baru Anda.'
+      );
+    }
     const failMsg = await recordFailedPinAttempt(table, idCol, user[idCol], user.Failed_Attempts, roleTitle, email);
     return createResponse(false, null, failMsg);
   }
 
-  await clearFailedPinAttempts(table, idCol, user[idCol]);
+  if (!hasScryptPin) {
+    await query(
+      `UPDATE "${table}" SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE, "Failed_Attempts" = 0, "Locked_Until" = NULL WHERE "${idCol}" = $2`,
+      [hashPin('123456'), user[idCol]]
+    );
+    user.Must_Change_Pin = true;
+  } else {
+    await clearFailedPinAttempts(table, idCol, user[idCol]);
+  }
+
   const safeUser = sanitizeStaffOutput(user, idCol, isRoleAdmin, email);
 
   await logActivity(roleTitle, user.Nama, 'Login Staff (Email + PIN)', email);
@@ -263,7 +298,8 @@ async function staffLogin(role, rawEmail, rawPin) {
 }
 
 /**
- * Login Staf via Google Sign-In (OAuth 2.0 ID Token + Opsional PIN sesuai Kebijakan Sistem)
+ * Login Staf via Google Sign-In (OAuth 2.0 ID Token + PIN 6 Digit Berlapis)
+ * Mendukung pembuatan PIN baru secara langsung pada login pertama (Must_Change_Pin = true).
  */
 async function staffLoginGoogle(role, idToken, rawPinOptional) {
   const { clientId, authMode } = await getConfiguredGoogleAuthSettings();
@@ -285,10 +321,22 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
     [email]
   );
   if (!user) {
+    if (isRoleAdmin) {
+      const onlyBootstrap = await queryOne(
+        `SELECT COUNT(*)::int AS total, MAX(LOWER(TRIM("Email"))) AS single_email FROM admin`
+      );
+      if (onlyBootstrap && onlyBootstrap.total === 1 && onlyBootstrap.single_email === 'admin@cbtbahasa.id') {
+        return createResponse(
+          false,
+          null,
+          `Akun Google "${email}" belum terdaftar. Masuk terlebih dahulu menggunakan email bawaan "admin@cbtbahasa.id" dan PIN awal 123456, lalu ganti ke email Google Anda di menu Staf & Akses Email.`
+        );
+      }
+    }
     return createResponse(
       false,
       null,
-      `Akun Google "${email}" belum terdaftar sebagai ${roleTitle} pada sistem CBT ini. Hubungi Administrator.`
+      `Akun Google "${email}" belum terdaftar sebagai ${roleTitle} pada sistem CBT ini. Pastikan pilihan peran (Administrator / Dosen) sudah sesuai.`
     );
   }
 
@@ -299,7 +347,10 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
   const lockMsg = getLockoutErrorMessage(user);
   if (lockMsg) return createResponse(false, null, lockMsg);
 
+  const hasScryptPin = user.Password_Hash && String(user.Password_Hash).startsWith('scrypt$');
+  const isFirstPinSetup = Boolean(user.Must_Change_Pin) || !hasScryptPin;
   const requirePinLayer = authMode !== 'google_direct';
+
   if (requirePinLayer) {
     const pinStr = String(rawPinOptional || '').trim();
     if (!pinStr) {
@@ -307,22 +358,42 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
         true,
         {
           requirePinStep: true,
+          isFirstPinSetup,
           email,
           nama: user.Nama,
           role: isRoleAdmin ? 'admin' : 'dosen'
         },
-        `Akun Google (${email}) terverifikasi. Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi.`
+        isFirstPinSetup
+          ? `Akun Google (${email}) terverifikasi! Silakan ketik 6 angka PIN keamanan baru Anda pada kolom PIN lalu klik Simpan PIN & Masuk.`
+          : `Akun Google (${email}) terverifikasi. Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi.`
       );
     }
 
-    const isPinValid = verifyPin(pinStr, user.Password_Hash);
-    if (!isPinValid) {
-      const failMsg = await recordFailedPinAttempt(table, idCol, user[idCol], user.Failed_Attempts, roleTitle, email);
-      return createResponse(false, null, failMsg);
+    const { pin: cleanPin, error: pinFmtErr } = validatePinFormat(pinStr);
+    if (pinFmtErr) return createResponse(false, null, pinFmtErr);
+
+    if (isFirstPinSetup) {
+      // Identitas pemilik email sudah terverifikasi oleh Google OAuth — simpan langsung PIN baru pilihan staf!
+      const stillDefault = cleanPin === '123456';
+      await query(
+        `UPDATE "${table}"
+         SET "Password_Hash" = $1, "Must_Change_Pin" = $2, "Failed_Attempts" = 0, "Locked_Until" = NULL
+         WHERE "${idCol}" = $3`,
+        [hashPin(cleanPin), stillDefault, user[idCol]]
+      );
+      user.Must_Change_Pin = stillDefault;
+    } else {
+      const isPinValid = verifyPin(cleanPin, user.Password_Hash);
+      if (!isPinValid) {
+        const failMsg = await recordFailedPinAttempt(table, idCol, user[idCol], user.Failed_Attempts, roleTitle, email);
+        return createResponse(false, null, failMsg);
+      }
+      await clearFailedPinAttempts(table, idCol, user[idCol]);
     }
+  } else {
+    await clearFailedPinAttempts(table, idCol, user[idCol]);
   }
 
-  await clearFailedPinAttempts(table, idCol, user[idCol]);
   const safeUser = sanitizeStaffOutput(user, idCol, isRoleAdmin, email);
 
   await logActivity(
@@ -360,7 +431,9 @@ async function changeOwnStaffPin(oldPin, newPin) {
   const user = await queryOne(`SELECT * FROM "${table}" WHERE "${idCol}" = $1`, [auth.userId]);
   if (!user) return createResponse(false, null, 'Data akun tidak ditemukan.');
 
-  if (!verifyPin(oldPinStr, user.Password_Hash)) {
+  const hasScryptPin = user.Password_Hash && String(user.Password_Hash).startsWith('scrypt$');
+  const isOldValid = hasScryptPin ? verifyPin(oldPinStr, user.Password_Hash) : oldPinStr === '123456';
+  if (!isOldValid) {
     return createResponse(false, null, 'PIN lama yang Anda masukkan tidak sesuai.');
   }
 

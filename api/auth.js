@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const authContextStorage = new AsyncLocalStorage();
+const DEFAULT_GOOGLE_CLIENT_ID = '715988750915-qpagfqfi1k90kbt6v1327ccotp1c19rp.apps.googleusercontent.com';
 
 function runWithAuthContext(authUser, callback) {
   return authContextStorage.run(authUser || null, callback);
@@ -201,6 +202,7 @@ function deterministicShuffle(array, seedStr) {
 }
 
 module.exports = {
+  DEFAULT_GOOGLE_CLIENT_ID,
   runWithAuthContext,
   getAuthContext,
   getApiSecret,

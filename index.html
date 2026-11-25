@@ -167,13 +167,16 @@
             </div>
 
             <div class="auth-field-group">
-              <label class="field-label" for="sPin" data-i18n="lblStaffPin">PIN Keamanan (6 Digit)</label>
+              <label class="field-label" for="sPin" id="lblStaffPinDynamic" data-i18n="lblStaffPin">PIN Keamanan (6 Digit)</label>
               <div class="input-icon-wrapper pin-input-wrapper">
                 <span class="input-icon-prefix"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
-                <input type="password" id="sPin" class="input-cbt pin-cbt-input" placeholder="••••••" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="current-password">
+                <input type="password" id="sPin" class="input-cbt pin-cbt-input" placeholder="••••••" inputmode="numeric" maxlength="6" required autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)">
                 <button type="button" class="input-suffix-btn" title="Tampilkan / Sembunyikan PIN" aria-label="Tampilkan atau sembunyikan PIN" onclick="togglePasswordVisibility('sPin', this)">
                   <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
+              </div>
+              <div id="staffPinHint" style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">
+                <i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.
               </div>
             </div>
 
@@ -1113,16 +1116,16 @@
           <i class="bi bi-exclamation-triangle-fill"></i> Akun Anda masih menggunakan PIN awal bawaan (<code>123456</code>). Demi keamanan, segera perbarui ke PIN 6 angka pribadi Anda.
         </div>
         <label class="field-label" for="ownOldPin">PIN Saat Ini *</label>
-        <input type="password" id="ownOldPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Masukkan 6 digit PIN lama" required>
+        <input type="password" id="ownOldPin" class="input-cbt" inputmode="numeric" maxlength="6" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" placeholder="Masukkan 6 digit PIN lama (awal: 123456)" required>
         <div style="height:12px;"></div>
         <div class="form-grid-2">
           <div>
             <label class="field-label" for="ownNewPin">PIN Baru (6 Angka) *</label>
-            <input type="password" id="ownNewPin" class="input-cbt" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6 digit angka" required>
+            <input type="password" id="ownNewPin" class="input-cbt" inputmode="numeric" maxlength="6" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" placeholder="6 digit angka" required>
           </div>
           <div>
             <label class="field-label" for="ownConfirmPin">Ulangi PIN Baru *</label>
-            <input type="password" id="ownConfirmPin" class="input-cbt" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="Ulangi 6 digit" required>
+            <input type="password" id="ownConfirmPin" class="input-cbt" inputmode="numeric" maxlength="6" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" placeholder="Ulangi 6 digit" required>
           </div>
         </div>
         <small style="display:block;margin-top:8px;font-size:11.5px;color:var(--text-muted);">Gunakan kombinasi 6 angka yang hanya diketahui oleh Anda (hindari <code>123456</code> atau <code>000000</code>).</small>
@@ -1148,7 +1151,7 @@
       <input type="email" id="newLecturerEmail" class="input-cbt" placeholder="siti.rahmawati@kampus.ac.id" required>
       <div style="height:14px;"></div>
       <label class="field-label" id="lblLecturerPinField">PIN Keamanan 6 Digit</label>
-      <input type="password" id="newLecturerPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Contoh: 482910 (kosongkan = PIN awal 123456)">
+      <input type="password" id="newLecturerPin" class="input-cbt" inputmode="numeric" maxlength="6" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" placeholder="Contoh: 482910 (kosongkan = PIN awal 123456)">
       <small id="helpLecturerPinField" style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Isi 6 digit angka. Jika dikosongkan saat tambah baru, PIN awal adalah <code>123456</code> dan dosen akan diminta menggantinya saat login.</small>
     </div>
     <div class="modal-footer-cbt">
@@ -1171,7 +1174,7 @@
       <input type="email" id="newAdminEmail" class="input-cbt" placeholder="admin.utama@kampus.ac.id" required>
       <div style="height:14px;"></div>
       <label class="field-label" id="lblAdminPinField">PIN Keamanan 6 Digit</label>
-      <input type="password" id="newAdminPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Contoh: 739204 (kosongkan = PIN awal 123456)">
+      <input type="password" id="newAdminPin" class="input-cbt" inputmode="numeric" maxlength="6" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" placeholder="Contoh: 739204 (kosongkan = PIN awal 123456)">
       <small id="helpAdminPinField" style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Isi 6 digit angka untuk otorisasi Administrator. Saat mengedit akun, kosongkan kolom ini jika tidak ingin mereset PIN.</small>
     </div>
     <div class="modal-footer-cbt">
