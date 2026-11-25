@@ -9,6 +9,8 @@ const {
   DEFAULT_GOOGLE_CLIENT_ID,
   getAuthContext,
   generateSessionToken,
+  generateDeviceTrustToken,
+  verifyDeviceTrustToken,
   generateId,
   generateAccessCode,
   hashPin,
@@ -86,8 +88,11 @@ async function getConfiguredGoogleAuthSettings() {
   return { clientId, authMode };
 }
 
-async function verifyGoogleIdToken(idToken, expectedClientId) {
-  if (!idToken || typeof idToken !== 'string') {
+async function verifyGoogleIdToken(credentialInput, expectedClientId) {
+  const isAccessTokenObj = credentialInput && typeof credentialInput === 'object' && credentialInput.accessToken;
+  const rawToken = isAccessTokenObj ? String(credentialInput.accessToken || '').trim() : String(credentialInput || '').trim();
+
+  if (!rawToken) {
     throw new Error('Token kredensial Google tidak ditemukan.');
   }
   if (!expectedClientId) {
@@ -97,14 +102,36 @@ async function verifyGoogleIdToken(idToken, expectedClientId) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
-    const res = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
-      { method: 'GET', signal: controller.signal }
-    );
+    // Mendukung baik Google OAuth2 Access Token (login_hint tanpa pilih akun) maupun Google ID Token (GIS One-Tap / Button)
+    const isOAuthAccessToken = isAccessTokenObj || rawToken.startsWith('ya29.');
+    const endpoint = isOAuthAccessToken
+      ? `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(rawToken)}`
+      : `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(rawToken)}`;
+
+    const res = await fetch(endpoint, { method: 'GET', signal: controller.signal });
     if (!res.ok) {
       throw new Error('Token Google OAuth tidak sah atau telah kedaluwarsa.');
     }
     const payload = await res.json();
+
+    if (isOAuthAccessToken) {
+      const tokenAud = payload.aud || payload.azp || '';
+      if (tokenAud !== expectedClientId) {
+        throw new Error('Google Client ID pada token akses tidak cocok dengan konfigurasi aplikasi ini.');
+      }
+      if (String(payload.email_verified) !== 'true') {
+        throw new Error('Alamat email pada akun Google Anda belum terverifikasi.');
+      }
+      if (payload.expires_in !== undefined && Number(payload.expires_in) <= 0) {
+        throw new Error('Sesi token Google telah kedaluwarsa. Silakan ulangi Sign-In Google.');
+      }
+      return {
+        email: String(payload.email || '').trim().toLowerCase(),
+        name: payload.name || '',
+        picture: payload.picture || ''
+      };
+    }
+
     const validIssuers = ['accounts.google.com', 'https://accounts.google.com'];
     if (!validIssuers.includes(payload.iss)) {
       throw new Error('Penerbit token OAuth tidak dikenali.');
@@ -215,6 +242,7 @@ function sanitizeStaffOutput(user, idCol, isRoleAdmin, email) {
   safeUser.role = isRoleAdmin ? 'admin' : 'dosen';
   safeUser.mustChangePin = Boolean(user.Must_Change_Pin);
   safeUser.token = generateSessionToken(user[idCol], safeUser.role, user.Nama);
+  safeUser.deviceTrustToken = generateDeviceTrustToken(user[idCol], safeUser.role, email);
   return safeUser;
 }
 
@@ -298,10 +326,11 @@ async function staffLogin(role, rawEmail, rawPin) {
 }
 
 /**
- * Login Staf via Google Sign-In (OAuth 2.0 ID Token + PIN 6 Digit Berlapis)
- * Mendukung pembuatan PIN baru secara langsung pada login pertama (Must_Change_Pin = true).
+ * Login Staf via Google Sign-In (OAuth 2.0 ID Token + PIN 6 Digit Berlapis / Fast Re-Login di Perangkat Tersimpan)
+ * - Jika staf pernah berhasil login di browser ini (deviceTrustToken valid) & sudah punya PIN pribadi,
+ *   maka Google Sign-In langsung masuk tanpa minta PIN atau konfirmasi ulang.
  */
-async function staffLoginGoogle(role, idToken, rawPinOptional) {
+async function staffLoginGoogle(role, idToken, rawPinOptional, deviceTrustToken) {
   const { clientId, authMode } = await getConfiguredGoogleAuthSettings();
   let googleProfile;
   try {
@@ -311,15 +340,34 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
   }
 
   const email = googleProfile.email;
-  const isRoleAdmin = String(role || '').toLowerCase() === 'admin';
-  const table = isRoleAdmin ? 'admin' : 'dosen';
-  const idCol = isRoleAdmin ? 'ID_Admin' : 'ID_Dosen';
-  const roleTitle = isRoleAdmin ? 'Administrator' : 'Dosen Penguji';
+  let isRoleAdmin = String(role || '').toLowerCase() === 'admin';
+  let table = isRoleAdmin ? 'admin' : 'dosen';
+  let idCol = isRoleAdmin ? 'ID_Admin' : 'ID_Dosen';
+  let roleTitle = isRoleAdmin ? 'Administrator' : 'Dosen Penguji';
 
-  const user = await queryOne(
+  let user = await queryOne(
     `SELECT * FROM "${table}" WHERE LOWER(TRIM("Email")) = $1`,
     [email]
   );
+
+  // Deteksi peran otomatis: bila email Google tidak ditemukan di tab peran saat ini,
+  // cek tabel peran staf lainnya agar user tidak gagal login hanya karena lupa menggeser toggle Admin/Dosen.
+  if (!user) {
+    const altIsAdmin = !isRoleAdmin;
+    const altTable = altIsAdmin ? 'admin' : 'dosen';
+    const altUser = await queryOne(
+      `SELECT * FROM "${altTable}" WHERE LOWER(TRIM("Email")) = $1`,
+      [email]
+    );
+    if (altUser) {
+      user = altUser;
+      isRoleAdmin = altIsAdmin;
+      table = altTable;
+      idCol = isRoleAdmin ? 'ID_Admin' : 'ID_Dosen';
+      roleTitle = isRoleAdmin ? 'Administrator' : 'Dosen Penguji';
+    }
+  }
+
   if (!user) {
     if (isRoleAdmin) {
       const onlyBootstrap = await queryOne(
@@ -336,7 +384,7 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
     return createResponse(
       false,
       null,
-      `Akun Google "${email}" belum terdaftar sebagai ${roleTitle} pada sistem CBT ini. Pastikan pilihan peran (Administrator / Dosen) sudah sesuai.`
+      `Akun Google "${email}" belum terdaftar sebagai Administrator maupun Dosen Penguji pada sistem CBT ini.`
     );
   }
 
@@ -349,7 +397,16 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
 
   const hasScryptPin = user.Password_Hash && String(user.Password_Hash).startsWith('scrypt$');
   const isFirstPinSetup = Boolean(user.Must_Change_Pin) || !hasScryptPin;
-  const requirePinLayer = authMode !== 'google_direct';
+  const resolvedRoleKey = isRoleAdmin ? 'admin' : 'dosen';
+
+  // Jika perangkat ini sudah pernah login sah untuk email ini (deviceTrustToken valid) & PIN pribadi sudah diatur,
+  // langsung izinkan masuk dengan verifikasi token Google tanpa perlu mengetik ulang PIN!
+  const isTrustedRememberedDevice =
+    !isFirstPinSetup &&
+    Boolean(deviceTrustToken) &&
+    verifyDeviceTrustToken(deviceTrustToken, user[idCol], resolvedRoleKey, email);
+
+  const requirePinLayer = authMode !== 'google_direct' && !isTrustedRememberedDevice;
 
   if (requirePinLayer) {
     const pinStr = String(rawPinOptional || '').trim();
@@ -361,11 +418,11 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
           isFirstPinSetup,
           email,
           nama: user.Nama,
-          role: isRoleAdmin ? 'admin' : 'dosen'
+          role: resolvedRoleKey
         },
         isFirstPinSetup
           ? `Akun Google (${email}) terverifikasi! Silakan ketik 6 angka PIN keamanan baru Anda pada kolom PIN lalu klik Simpan PIN & Masuk.`
-          : `Akun Google (${email}) terverifikasi. Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi.`
+          : `Akun Google (${email}) terverifikasi. Masukkan PIN 6 digit Anda satu kali di perangkat ini untuk masuk.`
       );
     }
 
@@ -373,7 +430,6 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
     if (pinFmtErr) return createResponse(false, null, pinFmtErr);
 
     if (isFirstPinSetup) {
-      // Identitas pemilik email sudah terverifikasi oleh Google OAuth — simpan langsung PIN baru pilihan staf!
       const stillDefault = cleanPin === '123456';
       await query(
         `UPDATE "${table}"
@@ -395,11 +451,16 @@ async function staffLoginGoogle(role, idToken, rawPinOptional) {
   }
 
   const safeUser = sanitizeStaffOutput(user, idCol, isRoleAdmin, email);
+  if (googleProfile.picture) safeUser.picture = googleProfile.picture;
 
   await logActivity(
     roleTitle,
     user.Nama,
-    requirePinLayer ? 'Login Staff (Google OAuth + PIN)' : 'Login Staff (Google OAuth)',
+    isTrustedRememberedDevice
+      ? 'Login Staff (Google Auto-Login Tersimpan)'
+      : requirePinLayer
+      ? 'Login Staff (Google OAuth + PIN)'
+      : 'Login Staff (Google OAuth)',
     email
   );
   return createResponse(true, safeUser, 'Otorisasi Google berhasil.');

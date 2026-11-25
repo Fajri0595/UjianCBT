@@ -105,6 +105,48 @@ function generateSessionToken(userId, role, name) {
   return Buffer.from(JSON.stringify({ p: payload, s: sig })).toString('base64');
 }
 
+/**
+ * Token Kepercayaan Perangkat (30 Hari) — Diterbitkan setelah staf berhasil login
+ * dengan Email+PIN atau Google+PIN pada browser ini, sehingga login Google berikutnya
+ * di perangkat yang sama dapat langsung masuk tanpa konfirmasi ulang.
+ */
+function generateDeviceTrustToken(userId, role, email) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanRole = String(role || '').trim().toLowerCase();
+  if (!userId || !cleanEmail || !cleanRole) return '';
+  const expiry = Date.now() + 30 * 24 * 3600 * 1000; // 30 hari
+  const payload = `trust_v1|${userId}|${cleanRole}|${cleanEmail}|${expiry}`;
+  const sig = crypto.createHmac('sha256', getApiSecret() + ':device_trust_v1').update(payload).digest('hex');
+  return Buffer.from(JSON.stringify({ p: payload, s: sig })).toString('base64');
+}
+
+function verifyDeviceTrustToken(tokenString, expectedUserId, expectedRole, expectedEmail) {
+  if (!tokenString || typeof tokenString !== 'string') return false;
+  try {
+    const cleanToken = tokenString.trim();
+    const decodedBuf = Buffer.from(cleanToken, 'base64');
+    if (decodedBuf.toString('base64') !== cleanToken) return false;
+    const raw = JSON.parse(decodedBuf.toString('utf-8'));
+    if (!raw || typeof raw.p !== 'string' || typeof raw.s !== 'string') return false;
+
+    const parts = raw.p.split('|');
+    if (parts.length !== 5) return false;
+    const [prefix, userId, role, email, expiry] = parts;
+    if (prefix !== 'trust_v1' || !expiry || Date.now() > Number(expiry)) return false;
+
+    const expectedSig = crypto.createHmac('sha256', getApiSecret() + ':device_trust_v1').update(raw.p).digest('hex');
+    if (!safeTimingEqualHex(expectedSig, raw.s)) return false;
+
+    return (
+      userId === String(expectedUserId || '') &&
+      role === String(expectedRole || '').trim().toLowerCase() &&
+      email === String(expectedEmail || '').trim().toLowerCase()
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
 function verifySessionToken(tokenString, requiredRole) {
   if (!tokenString || typeof tokenString !== 'string') return null;
   try {
@@ -212,6 +254,8 @@ module.exports = {
   hashPassword,
   verifyPassword,
   generateSessionToken,
+  generateDeviceTrustToken,
+  verifyDeviceTrustToken,
   verifySessionToken,
   generateId,
   generateAccessCode,

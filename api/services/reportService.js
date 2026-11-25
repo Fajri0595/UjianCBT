@@ -5,7 +5,7 @@
  */
 
 const { query, queryOne, ensureSchema, getPool } = require('../db');
-const { getAuthContext, DEFAULT_GOOGLE_CLIENT_ID } = require('../auth');
+const { getAuthContext, DEFAULT_GOOGLE_CLIENT_ID, generateDeviceTrustToken } = require('../auth');
 const { createResponse, logActivity } = require('./common');
 
 async function runDiagnostics() {
@@ -267,6 +267,20 @@ async function getSystemSettings() {
       },
       'OK'
     );
+  }
+
+  if (auth && (auth.role === 'admin' || auth.role === 'dosen')) {
+    const staffTable = auth.role === 'admin' ? 'admin' : 'dosen';
+    const staffIdCol = auth.role === 'admin' ? 'ID_Admin' : 'ID_Dosen';
+    const staffRow = await queryOne(`SELECT "Email", "Nama" FROM "${staffTable}" WHERE "${staffIdCol}" = $1`, [auth.userId]);
+    if (staffRow && staffRow.Email) {
+      config.rememberedStaff = {
+        email: String(staffRow.Email).trim().toLowerCase(),
+        nama: staffRow.Nama || auth.name || '',
+        role: auth.role,
+        deviceTrustToken: generateDeviceTrustToken(auth.userId, auth.role, staffRow.Email)
+      };
+    }
   }
 
   return createResponse(true, config, 'OK');

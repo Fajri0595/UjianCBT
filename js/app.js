@@ -195,7 +195,7 @@
       });
       refreshChartsTheme();
       if (typeof initGoogleSignInButton === 'function') {
-        _renderedGoogleClientId = null;
+        _renderedGoogleConfigKey = null;
         initGoogleSignInButton();
       }
     }
@@ -275,10 +275,22 @@
     
         if (savedStaff) {
           appState.staff = JSON.parse(savedStaff);
+          saveRememberedStaff(appState.staff);
           renderStaffSidebar(appState.staff.role);
           syncStaffIdentityUI(appState.staff);
           showView('view-staff-app');
           navigateTo(appState.staff.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
+          // Pastikan deviceTrustToken tersimpan bagi sesi aktif lama
+          gasRun.withSuccessHandler(r => {
+            if (r && r.success && r.data && r.data.rememberedStaff) {
+              saveRememberedStaff({
+                Email: r.data.rememberedStaff.email,
+                Nama: r.data.rememberedStaff.nama,
+                role: r.data.rememberedStaff.role,
+                deviceTrustToken: r.data.rememberedStaff.deviceTrustToken
+              });
+            }
+          }).getSystemSettings();
           return;
         }
     
@@ -525,11 +537,93 @@
     
     // ════════════════════════════════════════════════════════
     // AUTH — STAFF (HYBRID GOOGLE SIGN-IN OAUTH + EMAIL & PIN 6 DIGIT)
+    // Mendukung Deteksi Email Tersimpan & Fast Google Auto-Login Tanpa Pilih Akun Ulang
     // ════════════════════════════════════════════════════════
     const DEFAULT_GOOGLE_CLIENT_ID = '715988750915-qpagfqfi1k90kbt6v1327ccotp1c19rp.apps.googleusercontent.com';
+    const REMEMBERED_STAFF_KEY = 'cbt_remembered_staff';
     let _pendingGoogleIdToken = null;
     let _pendingFirstPinSetup = false;
-    let _renderedGoogleClientId = null;
+    let _renderedGoogleConfigKey = null;
+    let _justLoggedOutStaff = false;
+    let _autoPromptTriggeredInSession = false;
+
+    function getRememberedStaff() {
+      try {
+        const raw = localStorage.getItem(REMEMBERED_STAFF_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.email) return parsed;
+      } catch (e) {}
+      return null;
+    }
+
+    function saveRememberedStaff(staffObj) {
+      if (!staffObj || !staffObj.Email) return;
+      try {
+        const prev = getRememberedStaff() || {};
+        const record = {
+          email: String(staffObj.Email).trim().toLowerCase(),
+          nama: staffObj.Nama || prev.nama || '',
+          role: staffObj.role || prev.role || 'admin',
+          picture: staffObj.picture || prev.picture || '',
+          deviceTrustToken: staffObj.deviceTrustToken || prev.deviceTrustToken || ''
+        };
+        localStorage.setItem(REMEMBERED_STAFF_KEY, JSON.stringify(record));
+      } catch (e) {}
+    }
+
+    function syncRememberedStaffUI() {
+      const remembered = getRememberedStaff();
+      const chip = document.getElementById('rememberedStaffChip');
+      const avatarEl = document.getElementById('rememberedStaffAvatar');
+      const emailEl = document.getElementById('rememberedStaffEmail');
+      const emailInput = document.getElementById('sEmail');
+      const hint = document.getElementById('staffPinHint');
+
+      if (!remembered || _pendingGoogleIdToken) {
+        if (chip) chip.style.display = 'none';
+        return;
+      }
+
+      if (chip) chip.style.display = 'flex';
+      if (avatarEl) avatarEl.textContent = (remembered.nama || remembered.email || 'S').charAt(0).toUpperCase();
+      if (emailEl) {
+        emailEl.textContent = remembered.nama
+          ? `${remembered.nama} (${remembered.email})`
+          : remembered.email;
+      }
+
+      if (remembered.role && appState.staffRole !== remembered.role) {
+        setStaffRole(remembered.role);
+      }
+      if (emailInput && !emailInput.value.trim()) {
+        emailInput.value = remembered.email;
+      }
+      if (hint && remembered.deviceTrustToken) {
+        hint.innerHTML = '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini — klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.';
+      }
+    }
+
+    function forgetRememberedStaffAccount() {
+      localStorage.removeItem(REMEMBERED_STAFF_KEY);
+      _justLoggedOutStaff = true;
+      _autoPromptTriggeredInSession = false;
+      _renderedGoogleConfigKey = null;
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try { window.google.accounts.id.disableAutoSelect(); } catch (e) {}
+      }
+      clearPendingGoogleToken();
+      const chip = document.getElementById('rememberedStaffChip');
+      if (chip) chip.style.display = 'none';
+      const emailInput = document.getElementById('sEmail');
+      if (emailInput) {
+        emailInput.readOnly = false;
+        emailInput.value = '';
+        emailInput.focus();
+      }
+      initGoogleSignInButton();
+      showToast('Akun Dilupakan', 'Silakan masukkan alamat email atau pilih akun Google lain.', 'info');
+    }
 
     function setStaffRole(role) {
       const nextRole = role === 'dosen' ? 'dosen' : 'admin';
@@ -558,10 +652,11 @@
       _pendingFirstPinSetup = false;
       const chip = document.getElementById('googleVerifiedChip');
       if (chip) chip.style.display = 'none';
+      const remembered = getRememberedStaff();
       const emailInput = document.getElementById('sEmail');
       if (emailInput) {
         emailInput.readOnly = false;
-        emailInput.value = '';
+        emailInput.value = remembered ? remembered.email : '';
       }
       const pinInput = document.getElementById('sPin');
       if (pinInput) {
@@ -574,7 +669,9 @@
       }
       const hint = document.getElementById('staffPinHint');
       if (hint) {
-        hint.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.';
+        hint.innerHTML = (remembered && remembered.deviceTrustToken)
+          ? '<i class="bi bi-lightning-charge-fill" style="color:var(--primary);"></i> Email Anda tersimpan di perangkat ini — klik <strong>Lanjutkan dengan Google</strong> untuk langsung masuk tanpa konfirmasi ulang.'
+          : '<i class="bi bi-info-circle" aria-hidden="true"></i> Login pertama kali? Gunakan PIN awal <code>123456</code> atau klik <strong>Masuk dengan Akun Google</strong>.';
       }
       const btn = document.getElementById('btnStaffLoginSubmit');
       if (btn) {
@@ -582,9 +679,12 @@
         const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email & PIN';
         btn.innerHTML = `<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
       }
+      syncRememberedStaffUI();
     }
 
     function completeStaffLoginSuccess(staffData) {
+      _justLoggedOutStaff = false;
+      saveRememberedStaff(staffData);
       clearPendingGoogleToken();
       const pinField = document.getElementById('sPin');
       if (pinField) pinField.value = '';
@@ -592,14 +692,27 @@
       localStorage.removeItem('cbt_participant');
 
       appState.staff = staffData;
+      appState.staffRole = staffData.role || appState.staffRole;
       localStorage.setItem('cbt_staff', JSON.stringify(staffData));
       renderStaffSidebar(staffData.role);
       syncStaffIdentityUI(staffData);
       showView('view-staff-app');
       navigateTo(staffData.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
 
-      // Muat ulang pengaturan penuh (terautentikasi)
-      gasRun.withSuccessHandler(r => { if (r && r.success && r.data) applyLoadedSettings(r.data); }).getSystemSettings();
+      // Muat ulang pengaturan penuh (terautentikasi) & segarkan deviceTrustToken
+      gasRun.withSuccessHandler(r => {
+        if (r && r.success && r.data) {
+          if (r.data.rememberedStaff) {
+            saveRememberedStaff({
+              Email: r.data.rememberedStaff.email,
+              Nama: r.data.rememberedStaff.nama,
+              role: r.data.rememberedStaff.role,
+              deviceTrustToken: r.data.rememberedStaff.deviceTrustToken
+            });
+          }
+          applyLoadedSettings(r.data);
+        }
+      }).getSystemSettings();
 
       if (staffData.mustChangePin) {
         setTimeout(() => {
@@ -614,6 +727,8 @@
     }
 
     function initGoogleSignInButton() {
+      syncRememberedStaffUI();
+
       const clientId = getActiveGoogleClientId();
       const mount = document.getElementById('googleSignInBtnMount');
       const fallbackBtn = document.getElementById('googleFallbackBtn');
@@ -624,7 +739,7 @@
         mount.classList.remove('is-ready');
         mount.innerHTML = '';
         fallbackBtn.style.display = '';
-        _renderedGoogleClientId = null;
+        _renderedGoogleConfigKey = null;
         return;
       }
 
@@ -633,13 +748,60 @@
         return;
       }
 
-      // Tunda render tombol iframe GIS sampai tab Dosen & Staf benar-benar tampil (agar lebar tombol presisi & tidak 0px)
+      // Tunda render tombol iframe GIS sampai tab Dosen & Staf benar-benar tampil
       const isStaffPanelVisible = staffPanel && (staffPanel.classList.contains('is-active') || staffPanel.classList.contains('is-entering'));
       if (!isStaffPanelVisible) {
         return;
       }
 
-      if (_renderedGoogleClientId === clientId && mount.childElementCount > 0) {
+      const remembered = getRememberedStaff();
+      const rememberedEmail = remembered && remembered.email ? remembered.email : '';
+      const fallbackLabelEl = document.getElementById('googleFallbackBtnLabel');
+      const canAutoSelect = Boolean(rememberedEmail && remembered.deviceTrustToken && !_justLoggedOutStaff);
+      const configKey = `${clientId}|${getCurrentTheme()}|${rememberedEmail}|${canAutoSelect ? 'auto' : 'manual'}`;
+
+      // Jika email staf sudah tersimpan dari login sebelumnya, tampilkan tombol langsung "Lanjutkan sebagai <email>"
+      // yang menggunakan Google login_hint + prompt:'' agar TIDAK muncul dialog konfirmasi pilih akun lagi!
+      if (rememberedEmail) {
+        mount.classList.remove('is-ready');
+        mount.innerHTML = '';
+        fallbackBtn.style.display = '';
+        if (fallbackLabelEl) {
+          fallbackLabelEl.removeAttribute('data-i18n');
+          fallbackLabelEl.textContent = `Lanjutkan sebagai ${rememberedEmail}`;
+        }
+
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            ux_mode: 'popup',
+            context: 'signin',
+            auto_select: canAutoSelect,
+            login_hint: rememberedEmail,
+            itp_support: true,
+            use_fedcm_for_prompt: true,
+            cancel_on_tap_outside: false
+          });
+          _renderedGoogleConfigKey = configKey;
+
+          if (canAutoSelect && !_autoPromptTriggeredInSession && !appState.staff) {
+            _autoPromptTriggeredInSession = true;
+            window.google.accounts.id.prompt();
+          }
+        } catch (e) {
+          console.warn('[Google Auto-Select Init]', e);
+        }
+        return;
+      }
+
+      if (fallbackLabelEl) {
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        fallbackLabelEl.setAttribute('data-i18n', 'btnGoogleSignIn');
+        fallbackLabelEl.textContent = (I18N[lang] && I18N[lang].btnGoogleSignIn) || 'Masuk dengan Akun Google';
+      }
+
+      if (_renderedGoogleConfigKey === configKey && mount.childElementCount > 0) {
         mount.classList.add('is-ready');
         fallbackBtn.style.display = 'none';
         return;
@@ -650,8 +812,11 @@
           client_id: clientId,
           callback: handleGoogleCredentialResponse,
           ux_mode: 'popup',
-          auto_select: false
+          context: 'signin',
+          auto_select: false,
+          itp_support: true
         });
+
         const wrapWidth = (mount.parentElement && mount.parentElement.clientWidth) ? mount.parentElement.clientWidth : 360;
         const targetBtnWidth = Math.min(390, Math.max(240, Math.floor(wrapWidth)));
         mount.innerHTML = '';
@@ -666,7 +831,7 @@
         });
         mount.classList.add('is-ready');
         fallbackBtn.style.display = 'none';
-        _renderedGoogleClientId = clientId;
+        _renderedGoogleConfigKey = configKey;
       } catch (err) {
         console.warn('[Google OAuth Init]', err);
         mount.classList.remove('is-ready');
@@ -685,8 +850,38 @@
         );
         return;
       }
+
+      const remembered = getRememberedStaff();
+      const typedEmail = (document.getElementById('sEmail')?.value || '').trim().toLowerCase();
+      const hintEmail = (remembered && remembered.email) || typedEmail || '';
+
+      // Gunakan OAuth2 Token Client dengan hint + prompt:'' bila email terdeteksi agar langsung masuk tanpa pilih akun ulang
+      if (hintEmail && window.google && window.google.accounts && window.google.accounts.oauth2) {
+        try {
+          const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'openid email profile',
+            hint: hintEmail,
+            prompt: '',
+            callback: (tokenResp) => {
+              if (tokenResp && tokenResp.access_token) {
+                handleGoogleCredentialResponse({ credential: { accessToken: tokenResp.access_token } });
+              } else if (tokenResp && tokenResp.error) {
+                // Jika sesi Google di browser belum aktif untuk email tersebut, fallback ke pemilih standar
+                if (window.google.accounts.id) window.google.accounts.id.prompt();
+              }
+            }
+          });
+          tokenClient.requestAccessToken({ prompt: '', hint: hintEmail });
+          return;
+        } catch (err) {
+          console.warn('[Google Hint Login Fallback]', err);
+        }
+      }
+
       if (window.google && window.google.accounts && window.google.accounts.id) {
-        _renderedGoogleClientId = null;
+        _justLoggedOutStaff = false;
+        _renderedGoogleConfigKey = null;
         initGoogleSignInButton();
         window.google.accounts.id.prompt();
       } else {
@@ -701,6 +896,8 @@
       if (errBox) errBox.style.display = 'none';
 
       const currentPin = (document.getElementById('sPin')?.value || '').replace(/\D/g, '').trim();
+      const remembered = getRememberedStaff();
+      const deviceTrustToken = (remembered && remembered.deviceTrustToken) ? remembered.deviceTrustToken : '';
       const btn = document.getElementById('btnStaffLoginSubmit');
       const resetSubmitLabel = () => {
         if (!btn) return;
@@ -711,7 +908,7 @@
       };
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Akun Google...';
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Masuk Otomatis via Google...';
       }
 
       gasRun
@@ -730,11 +927,16 @@
             }
             return;
           }
-          // Jika kebijakan sistem mewajibkan 2 lapis (Google OAuth + PIN 6 Digit)
+          // Jika perangkat baru pertama kali dipakai (belum ada deviceTrustToken) dan mode 2 lapis aktif
           if (res.data && res.data.requirePinStep) {
             if (btn) btn.disabled = false;
             _pendingGoogleIdToken = idToken;
             _pendingFirstPinSetup = Boolean(res.data.isFirstPinSetup);
+            if (res.data.role && res.data.role !== appState.staffRole) {
+              setStaffRole(res.data.role);
+            }
+            const remChip = document.getElementById('rememberedStaffChip');
+            if (remChip) remChip.style.display = 'none';
             const chip = document.getElementById('googleVerifiedChip');
             const chipText = document.getElementById('googleVerifiedEmailText');
             if (chip && chipText) {
@@ -764,7 +966,10 @@
               if (btn) {
                 btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
               }
-              showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi berlapis.', 'success');
+              if (hint) {
+                hint.innerHTML = '<i class="bi bi-shield-lock" style="color:var(--primary);"></i> Verifikasi PIN satu kali di browser ini — login Google berikutnya akan langsung masuk otomatis.';
+              }
+              showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda satu kali untuk menyimpan perangkat ini.', 'success');
             }
 
             if (pinInput) pinInput.focus();
@@ -777,7 +982,7 @@
           resetSubmitLabel();
           showToast('Error Google OAuth', err.message, 'danger');
         })
-        .staffLoginGoogle(appState.staffRole, idToken, currentPin);
+        .staffLoginGoogle(appState.staffRole, idToken, currentPin, deviceTrustToken);
     }
 
     function handleStaffLogin(e) {
@@ -824,10 +1029,12 @@
       };
 
       if (_pendingGoogleIdToken) {
+        const rem = getRememberedStaff();
+        const trustTok = (rem && rem.deviceTrustToken) ? rem.deviceTrustToken : '';
         gasRun
           .withSuccessHandler(onAuthResult)
           .withFailureHandler(err => { restoreLoginBtn(); showToast('Error', err.message, 'danger'); })
-          .staffLoginGoogle(appState.staffRole, _pendingGoogleIdToken, pin);
+          .staffLoginGoogle(appState.staffRole, _pendingGoogleIdToken, pin, trustTok);
       } else {
         gasRun
           .withSuccessHandler(onAuthResult)
@@ -880,11 +1087,16 @@
     }
     
     function logoutStaff() {
+      if (appState.staff && appState.staff.Email) {
+        saveRememberedStaff(appState.staff);
+      }
+      _justLoggedOutStaff = true;
       appState.staff = null;
       localStorage.removeItem('cbt_staff');
       clearPendingGoogleToken();
       const pinField = document.getElementById('sPin');
       if (pinField) pinField.value = '';
+      _renderedGoogleConfigKey = null;
       showView('view-staff-login');
     }
     

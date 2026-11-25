@@ -1424,6 +1424,91 @@
   background: rgba(15, 118, 110, 0.08);
 }
 
+/* Remembered Staff Account Chip (Zero-Picker Google Auto-Login) */
+.remembered-staff-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  border-radius: 11px;
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.24);
+}
+
+[data-theme="dark"] .remembered-staff-chip {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.30);
+}
+
+.remembered-staff-chip .rsc-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.remembered-staff-chip .rsc-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.remembered-staff-chip .rsc-meta {
+  min-width: 0;
+}
+
+.remembered-staff-chip .rsc-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .remembered-staff-chip .rsc-title {
+  color: #5EEAD4;
+}
+
+.remembered-staff-chip .rsc-email {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.remembered-staff-chip .rsc-switch-btn {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.remembered-staff-chip .rsc-switch-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 /* Google Verified Chip (2-Factor Google + PIN State) */
 .google-verified-chip {
   display: flex;
