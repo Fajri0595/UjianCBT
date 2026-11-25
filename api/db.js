@@ -6,6 +6,7 @@
  */
 
 const { Pool } = require('pg');
+const { hashPin } = require('./auth');
 
 let pool = null;
 
@@ -211,14 +212,23 @@ async function ensureSchema() {
       CREATE INDEX IF NOT EXISTS idx_hasil_peserta_ujian ON hasil_ujian ("ID_Peserta", "ID_Ujian");
       CREATE INDEX IF NOT EXISTS idx_bank_soal_sesi ON bank_soal ("Sesi", "Topik");
 
-      -- Kolom Proteksi Sesi Tunggal & Anti-Curang
+      -- Kolom Proteksi Sesi Tunggal, Cloud Auto-Save & Anti-Curang
       ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Active_Token" TEXT;
       ALTER TABLE peserta ADD COLUMN IF NOT EXISTS "Device_Info" TEXT;
       ALTER TABLE ujian ADD COLUMN IF NOT EXISTS "Acak_Soal" BOOLEAN DEFAULT TRUE;
+      ALTER TABLE hasil_ujian ADD COLUMN IF NOT EXISTS "State_Meta_JSON" TEXT DEFAULT '{}';
+      ALTER TABLE hasil_ujian ADD COLUMN IF NOT EXISTS "Jumlah_Pelanggaran" INT DEFAULT 0;
+      ALTER TABLE hasil_ujian ADD COLUMN IF NOT EXISTS "Terakhir_Sinkron" TIMESTAMPTZ;
 
-      -- Migrasi Autentikasi Email Tanpa Password untuk Staf (Admin & Dosen)
+      -- Migrasi Keamanan Login Hybrid Staf (Google OAuth + Email & PIN 6 Digit + Anti Brute-Force)
       ALTER TABLE dosen ADD COLUMN IF NOT EXISTS "Email" VARCHAR(200);
       ALTER TABLE admin ADD COLUMN IF NOT EXISTS "Email" VARCHAR(200);
+      ALTER TABLE dosen ADD COLUMN IF NOT EXISTS "Failed_Attempts" INT DEFAULT 0;
+      ALTER TABLE dosen ADD COLUMN IF NOT EXISTS "Locked_Until" TIMESTAMPTZ;
+      ALTER TABLE dosen ADD COLUMN IF NOT EXISTS "Must_Change_Pin" BOOLEAN DEFAULT FALSE;
+      ALTER TABLE admin ADD COLUMN IF NOT EXISTS "Failed_Attempts" INT DEFAULT 0;
+      ALTER TABLE admin ADD COLUMN IF NOT EXISTS "Locked_Until" TIMESTAMPTZ;
+      ALTER TABLE admin ADD COLUMN IF NOT EXISTS "Must_Change_Pin" BOOLEAN DEFAULT FALSE;
       ALTER TABLE dosen ALTER COLUMN "Username" DROP NOT NULL;
       ALTER TABLE dosen ALTER COLUMN "Password_Hash" DROP NOT NULL;
       ALTER TABLE admin ALTER COLUMN "Username" DROP NOT NULL;
@@ -227,50 +237,53 @@ async function ensureSchema() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_email_lower ON admin (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
     `);
 
-    // 2. Injeksi Akun Admin Awal jika kosong (atau backfill email untuk database lama)
+    const initialBootstrapPinHash = hashPin('123456');
+
+    // 2. Injeksi Akun Admin Awal hanya jika tabel admin benar-benar kosong
     const adminCheck = await query('SELECT count(*) FROM admin');
     if (parseInt(adminCheck.rows[0].count, 10) === 0) {
       await query(
-        `INSERT INTO admin ("ID_Admin", "Nama", "Username", "Email", "Password_Hash")
-         VALUES ($1, $2, $3, $4, $5)`,
-        ['ADM-001', 'Super Admin CBT', 'admin.pusatbahasa', 'admin@cbtbahasa.id', '']
+        `INSERT INTO admin ("ID_Admin", "Nama", "Username", "Email", "Password_Hash", "Must_Change_Pin")
+         VALUES ($1, $2, $3, $4, $5, TRUE)`,
+        ['ADM-001', 'Super Admin CBT', 'admin.pusatbahasa', 'admin@cbtbahasa.id', initialBootstrapPinHash]
       );
-    } else {
-      await query(`
-        UPDATE admin
-        SET "Email" = 'admin@cbtbahasa.id'
-        WHERE ("ID_Admin" = 'ADM-001' OR "Username" = 'admin.pusatbahasa')
-          AND ("Email" IS NULL OR TRIM("Email") = '')
-          AND NOT EXISTS (SELECT 1 FROM admin WHERE LOWER(TRIM("Email")) = 'admin@cbtbahasa.id')
-      `);
     }
 
-    // 3. Injeksi Akun Dosen Awal jika kosong (atau backfill email untuk database lama)
+    // 3. Injeksi Akun Dosen Awal hanya jika tabel dosen benar-benar kosong
     const dosenCheck = await query('SELECT count(*) FROM dosen');
     if (parseInt(dosenCheck.rows[0].count, 10) === 0) {
       await query(
-        `INSERT INTO dosen ("ID_Dosen", "Nama", "Username", "Email", "Password_Hash", "Status")
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['DSN-001', 'Dr. Aris Munandar, M.Hum.', 'dosen.aris', 'dosen.aris@cbtbahasa.id', '', 'Aktif']
+        `INSERT INTO dosen ("ID_Dosen", "Nama", "Username", "Email", "Password_Hash", "Status", "Must_Change_Pin")
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
+        ['DSN-001', 'Dr. Aris Munandar, M.Hum.', 'dosen.aris', 'dosen.aris@cbtbahasa.id', initialBootstrapPinHash, 'Aktif']
       );
-    } else {
-      await query(`
-        UPDATE dosen
-        SET "Email" = 'dosen.aris@cbtbahasa.id'
-        WHERE ("ID_Dosen" = 'DSN-001' OR "Username" = 'dosen.aris')
-          AND ("Email" IS NULL OR TRIM("Email") = '')
-          AND NOT EXISTS (SELECT 1 FROM dosen WHERE LOWER(TRIM("Email")) = 'dosen.aris@cbtbahasa.id')
-      `);
     }
 
-    // 4. Injeksi Peserta Contoh jika kosong
-    const pesertaCheck = await query('SELECT count(*) FROM peserta');
-    if (parseInt(pesertaCheck.rows[0].count, 10) === 0) {
-      await query(
-        `INSERT INTO peserta ("ID_Peserta", "Nama", "Kontak", "Kode_Akses", "ID_Ujian_Target", "Status_Kode", "Rombel")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        ['PST-DEMO', 'Contoh Peserta', 'contoh@mail.com', 'LANG-DEMO', '', 'Aktif', 'Umum']
-      );
+    // Migrasi aman untuk akun staf lama yang belum memiliki PIN (Password_Hash kosong)
+    // Diberikan PIN awal '123456' ter-hash scrypt + penanda wajib ganti PIN saat login
+    await query(
+      `UPDATE admin
+       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE
+       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = ''`,
+      [initialBootstrapPinHash]
+    );
+    await query(
+      `UPDATE dosen
+       SET "Password_Hash" = $1, "Must_Change_Pin" = TRUE
+       WHERE "Password_Hash" IS NULL OR TRIM("Password_Hash") = ''`,
+      [initialBootstrapPinHash]
+    );
+
+    // 4. Injeksi Peserta Contoh hanya di mode non-produksi lokal jika tabel kosong
+    if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+      const pesertaCheck = await query('SELECT count(*) FROM peserta');
+      if (parseInt(pesertaCheck.rows[0].count, 10) === 0) {
+        await query(
+          `INSERT INTO peserta ("ID_Peserta", "Nama", "Kontak", "Kode_Akses", "ID_Ujian_Target", "Status_Kode", "Rombel")
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          ['PST-DEMO', 'Contoh Peserta', 'contoh@mail.com', 'LANG-DEMO', '', 'Aktif', 'Umum']
+        );
+      }
     }
 
     // 5. Injeksi Pengaturan Sistem Default
@@ -279,7 +292,8 @@ async function ensureSchema() {
       ['durasiDefault', '115'],
       ['skalaMin', '310'],
       ['skalaMax', '677'],
-      ['appName', 'CBT Bahasa']
+      ['appName', 'CBT Bahasa'],
+      ['googleAuthMode', 'google_plus_pin']
     ];
 
     for (const [key, val] of defaultSettings) {

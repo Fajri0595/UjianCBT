@@ -16,23 +16,29 @@ CREATE TABLE IF NOT EXISTS peserta (
   "Device_Info" TEXT
 );
 
--- 2. Tabel Dosen Penguji (Login Passwordless via Email Terdaftar)
+-- 2. Tabel Dosen Penguji (Login Hybrid: Google OAuth + Email & PIN Ter-hash)
 CREATE TABLE IF NOT EXISTS dosen (
   "ID_Dosen" VARCHAR(60) PRIMARY KEY,
   "Nama" VARCHAR(200) NOT NULL,
   "Username" VARCHAR(100) UNIQUE,
   "Email" VARCHAR(200),
   "Password_Hash" VARCHAR(255) DEFAULT '',
-  "Status" VARCHAR(30) DEFAULT 'Aktif'
+  "Status" VARCHAR(30) DEFAULT 'Aktif',
+  "Failed_Attempts" INT DEFAULT 0,
+  "Locked_Until" TIMESTAMPTZ,
+  "Must_Change_Pin" BOOLEAN DEFAULT FALSE
 );
 
--- 3. Tabel Administrator (Login Passwordless via Email Terdaftar)
+-- 3. Tabel Administrator (Login Hybrid: Google OAuth + Email & PIN Ter-hash)
 CREATE TABLE IF NOT EXISTS admin (
   "ID_Admin" VARCHAR(60) PRIMARY KEY,
   "Nama" VARCHAR(200) NOT NULL,
   "Username" VARCHAR(100) UNIQUE,
   "Email" VARCHAR(200),
-  "Password_Hash" VARCHAR(255) DEFAULT ''
+  "Password_Hash" VARCHAR(255) DEFAULT '',
+  "Failed_Attempts" INT DEFAULT 0,
+  "Locked_Until" TIMESTAMPTZ,
+  "Must_Change_Pin" BOOLEAN DEFAULT FALSE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_dosen_email_lower ON dosen (LOWER(TRIM("Email"))) WHERE "Email" IS NOT NULL AND TRIM("Email") <> '';
@@ -99,6 +105,9 @@ CREATE TABLE IF NOT EXISTS hasil_ujian (
   "Nama_Peserta" VARCHAR(200) DEFAULT '',
   "ID_Ujian" VARCHAR(60) NOT NULL,
   "Jawaban_JSON" TEXT DEFAULT '{}',
+  "State_Meta_JSON" TEXT DEFAULT '{}',
+  "Jumlah_Pelanggaran" INT DEFAULT 0,
+  "Terakhir_Sinkron" TIMESTAMPTZ,
   "Skor_Listening" INT DEFAULT 0,
   "Skor_Grammar" INT DEFAULT 0,
   "Skor_Reading" INT DEFAULT 0,

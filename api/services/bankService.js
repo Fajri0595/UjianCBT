@@ -5,7 +5,7 @@
  */
 
 const { query, queryOne } = require('../db');
-const { generateId, generateAccessCode } = require('../auth');
+const { getAuthContext, generateId, generateAccessCode } = require('../auth');
 const { createResponse, logActivity } = require('./common');
 
 async function getBankSoalList(filters) {
@@ -36,6 +36,10 @@ async function getBankSoalTopics() {
 }
 
 async function addBankSoal(soalObj, idDosen) {
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen') {
+    idDosen = auth.userId;
+  }
   if (!soalObj.Sesi || !soalObj.Pertanyaan || !soalObj.Jawaban_Benar) {
     return createResponse(false, null, 'Kolom Sesi, Pertanyaan, dan Jawaban_Benar wajib diisi.');
   }
@@ -73,6 +77,13 @@ async function addBankSoal(soalObj, idDosen) {
 
 async function updateBankSoal(soalObj) {
   if (!soalObj || !soalObj.ID_Bank) return createResponse(false, null, 'ID_Bank wajib disertakan.');
+  const existing = await queryOne('SELECT "ID_Dosen_Pembuat" FROM bank_soal WHERE "ID_Bank" = $1', [soalObj.ID_Bank]);
+  if (!existing) return createResponse(false, null, 'Soal pada Bank Soal tidak ditemukan.');
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen' && existing.ID_Dosen_Pembuat !== auth.userId) {
+    return createResponse(false, null, 'Akses ditolak: Anda hanya dapat mengedit butir Bank Soal yang Anda buat sendiri.');
+  }
+
   let answerKey = soalObj.Jawaban_Benar ? String(soalObj.Jawaban_Benar).toUpperCase().trim() : null;
   if (answerKey && !['A', 'B', 'C', 'D'].includes(answerKey)) {
     return createResponse(false, null, 'Jawaban_Benar harus A, B, C, atau D.');
@@ -114,11 +125,21 @@ async function updateBankSoal(soalObj) {
 }
 
 async function deleteBankSoal(idBank) {
+  const existing = await queryOne('SELECT "ID_Dosen_Pembuat" FROM bank_soal WHERE "ID_Bank" = $1', [idBank]);
+  if (!existing) return createResponse(false, null, 'Soal pada Bank Soal tidak ditemukan.');
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen' && existing.ID_Dosen_Pembuat !== auth.userId) {
+    return createResponse(false, null, 'Akses ditolak: Anda hanya dapat menghapus butir Bank Soal yang Anda buat sendiri.');
+  }
   await query('DELETE FROM bank_soal WHERE "ID_Bank" = $1', [idBank]);
   return createResponse(true, null, 'Soal berhasil dihapus dari Bank Soal.');
 }
 
 async function importBankSoalBatch(questionsArray, idDosen) {
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen') {
+    idDosen = auth.userId;
+  }
   const results = { success: 0, errors: [] };
   if (!Array.isArray(questionsArray)) return createResponse(false, results, 'Data bank soal tidak valid.');
 
@@ -164,6 +185,13 @@ async function importBankSoalBatch(questionsArray, idDosen) {
 }
 
 async function pullFromBankToExam(idUjian, idBankList) {
+  const ujianRow = await queryOne('SELECT "ID_Dosen_Pembuat" FROM ujian WHERE "ID_Ujian" = $1', [idUjian]);
+  if (!ujianRow) return createResponse(false, null, 'Ujian tujuan tidak ditemukan.');
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen' && ujianRow.ID_Dosen_Pembuat !== auth.userId) {
+    return createResponse(false, null, 'Akses ditolak: Anda tidak berwenang menambah soal ke paket ujian dosen lain.');
+  }
+
   if (!Array.isArray(idBankList) || !idBankList.length) {
     return createResponse(false, null, 'Tidak ada soal bank yang dipilih.');
   }
@@ -237,9 +265,16 @@ async function uploadAudioToDrive(base64Data, fileName, mimeType) {
   if (!base64Data || typeof base64Data !== 'string') {
     return createResponse(false, null, 'Data audio kosong atau format tidak valid.');
   }
+  if (base64Data.length > 4_400_000) {
+    return createResponse(
+      false,
+      null,
+      'Ukuran berkas audio melebihi batas unggah langsung Serverless (maksimal ~3,2 MB per file MP3). Kompres audio ke 64–96 kbps atau gunakan URL penyimpanan eksternal.'
+    );
+  }
 
   const safeMime = mimeType && mimeType.startsWith('audio/') ? mimeType : 'audio/mpeg';
-  const cleanName = fileName || `audio-${Date.now()}.mp3`;
+  const cleanName = String(fileName || `audio-${Date.now()}.mp3`).replace(/[^a-zA-Z0-9._-]/g, '_');
 
   // Cek apakah Vercel Blob terkonfigurasi
   if (process.env.BLOB_READ_WRITE_TOKEN) {
@@ -252,11 +287,20 @@ async function uploadAudioToDrive(base64Data, fileName, mimeType) {
       });
       return createResponse(true, { fileId: blob.url, fileUrl: blob.url }, 'Audio berhasil diunggah ke Vercel Blob.');
     } catch (eBlob) {
-      console.warn('[Vercel Blob Upload Failed, Fallback to Data URI]', eBlob.message);
+      console.warn('[Vercel Blob Upload Failed]', eBlob.message);
+      return createResponse(false, null, 'Gagal mengunggah ke Vercel Blob: ' + eBlob.message);
     }
   }
 
-  // Fallback Data URI jika Vercel Blob belum diaktifkan
+  // Cegah pembengkakan kuota database PostgreSQL jika BLOB_READ_WRITE_TOKEN belum aktif untuk file besar (>750 KB)
+  if (base64Data.length > 1_024_000) {
+    return createResponse(
+      false,
+      null,
+      'Penyimpanan Cloud (Vercel Blob) belum diaktifkan, sehingga unggahan langsung tanpa Blob dibatasi maks. 750 KB agar database PostgreSQL tetap ringan. Aktifkan BLOB_READ_WRITE_TOKEN di Vercel Storage atau tempelkan URL MP3 eksternal.'
+    );
+  }
+
   const dataUrl = `data:${safeMime};base64,${base64Data}`;
   return createResponse(true, { fileId: 'data-uri', fileUrl: dataUrl }, 'Audio siap digunakan.');
 }

@@ -5,6 +5,7 @@
  */
 
 const { query, queryOne, ensureSchema, getPool } = require('../db');
+const { getAuthContext } = require('../auth');
 const { createResponse, logActivity } = require('./common');
 
 async function runDiagnostics() {
@@ -240,6 +241,34 @@ async function getSystemSettings() {
   const { rows } = await query('SELECT * FROM pengaturan_sistem');
   const config = {};
   rows.forEach((r) => (config[r.Key] = r.Value));
+
+  if (!config.googleClientId && process.env.GOOGLE_CLIENT_ID) {
+    config.googleClientId = process.env.GOOGLE_CLIENT_ID.trim();
+  }
+  config.hasEnvGoogleClientId = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim());
+  if (!config.googleAuthMode) {
+    config.googleAuthMode = 'google_plus_pin';
+  }
+
+  const auth = getAuthContext();
+  if (!auth) {
+    // Hanya kembalikan kunci konfigurasi antarmuka publik sebelum login
+    return createResponse(
+      true,
+      {
+        appName: config.appName || 'CBT Bahasa',
+        institutionName: config.institutionName || '',
+        loginBgUrl: config.loginBgUrl || '',
+        googleClientId: config.googleClientId || '',
+        googleAuthMode: config.googleAuthMode || 'google_plus_pin',
+        scoringMode: config.scoringMode || 'toefl_itp',
+        skalaMin: config.skalaMin || '310',
+        skalaMax: config.skalaMax || '677'
+      },
+      'OK'
+    );
+  }
+
   return createResponse(true, config, 'OK');
 }
 

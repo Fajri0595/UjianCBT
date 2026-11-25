@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CBT Bahasa — Sistem Ujian Kebahasaan</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="icon" type="image/jpeg" href="logo-instansi.jpg">
-  <link rel="apple-touch-icon" href="logo-instansi.jpg">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+  <link rel="icon" type="image/png" sizes="256x256" href="favicon.png?v=2">
+  <link rel="shortcut icon" href="favicon.ico?v=2">
+  <link rel="apple-touch-icon" href="favicon.png?v=2">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="if(window.initGoogleSignInButton) window.initGoogleSignInButton()"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -147,19 +149,56 @@
           </div>
 
           <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
-            <div class="auth-field-group">
+            <!-- Chip Status Verifikasi Google OAuth (Tampil saat Langkah 1 Google Selesai) -->
+            <div id="googleVerifiedChip" class="google-verified-chip" style="display:none;">
+              <div class="gvc-info">
+                <i class="bi bi-patch-check-fill" aria-hidden="true"></i>
+                <span id="googleVerifiedEmailText">Akun Google Terverifikasi</span>
+              </div>
+              <button type="button" class="gvc-reset-btn" onclick="clearPendingGoogleToken()">Ganti</button>
+            </div>
+
+            <div class="auth-field-group" id="staffEmailGroup">
               <label class="field-label" for="sEmail" data-i18n="lblStaffEmail">Email Institusi / Staf Terdaftar</label>
               <div class="input-icon-wrapper" id="staffEmailWrapper">
                 <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill" aria-hidden="true"></i></span>
-                <input type="email" id="sEmail" class="input-cbt" placeholder="admin@cbtbahasa.id" required autocomplete="email">
+                <input type="email" id="sEmail" class="input-cbt" placeholder="nama.anda@institusi.ac.id" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="auth-field-group">
+              <label class="field-label" for="sPin" data-i18n="lblStaffPin">PIN Keamanan (6 Digit)</label>
+              <div class="input-icon-wrapper pin-input-wrapper">
+                <span class="input-icon-prefix"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
+                <input type="password" id="sPin" class="input-cbt pin-cbt-input" placeholder="••••••" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="current-password">
+                <button type="button" class="input-suffix-btn" title="Tampilkan / Sembunyikan PIN" aria-label="Tampilkan atau sembunyikan PIN" onclick="togglePasswordVisibility('sPin', this)">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
               </div>
             </div>
 
             <div id="staffLoginError" class="field-error-modern" role="alert"></div>
 
             <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
-              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">Masuk ke Dashboard Staf</span>
+              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">Masuk dengan Email &amp; PIN</span>
             </button>
+
+            <div class="auth-oauth-divider">
+              <span data-i18n="orGoogleAuth">atau masuk menggunakan Google</span>
+            </div>
+
+            <div class="google-signin-wrap" id="googleSignInWrap">
+              <div id="googleSignInBtnMount" class="google-gsi-mount"></div>
+              <button type="button" id="googleFallbackBtn" class="btn-google-oauth" onclick="handleGoogleFallbackClick()">
+                <svg class="google-g-svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3 14.7 2 12 2 6.5 2 2 6.5 2 12s4.5 10 10 10c5.8 0 9.6-4.1 9.6-9.8 0-.7-.1-1.2-.2-1.8H12z"/>
+                  <path fill="#34A853" d="M3.2 7.3l3.2 2.4C7.2 7.5 9.4 5.9 12 5.9c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3 14.7 2 12 2 8.1 2 4.8 4.2 3.2 7.3z"/>
+                  <path fill="#FBBC05" d="M12 22c2.6 0 4.8-.9 6.4-2.4l-3-2.5c-.8.6-1.9 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1l-3.2 2.5C4.8 19.8 8.1 22 12 22z"/>
+                  <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.2-.2-1.8H12v3.9h5.5c-.3 1.3-1 2.4-2.1 3.1l3 2.5c1.8-1.6 3.2-4.1 3.2-7.7z"/>
+                </svg>
+                <span data-i18n="btnGoogleSignIn">Masuk dengan Akun Google</span>
+              </button>
+            </div>
           </form>
         </section>
       </div>
@@ -326,6 +365,9 @@
           <div class="sidebar-user-name" id="sidebarStaffName">Administrator</div>
           <div class="sidebar-user-sub" id="sidebarStaffEmail"><span class="online-dot"></span>Sesi Aktif</div>
         </div>
+        <button type="button" class="sidebar-pin-btn" title="Ubah PIN Keamanan Saya" onclick="openChangeOwnPinModal()">
+          <i class="bi bi-key-fill"></i>
+        </button>
       </div>
       <button type="button" class="btn-logout" onclick="logoutStaff()">
         <span class="btn-logout-content">
@@ -390,12 +432,28 @@
           </div>
         </div>
         <div class="form-section-card">
-          <div class="fs-title"><i class="bi bi-clock-history"></i> Durasi, Kelulusan & Jadwal</div>
+          <div class="fs-title"><i class="bi bi-clock-history"></i> Durasi, Kelulusan &amp; Jadwal</div>
           <div class="form-grid-2">
-            <div><label class="field-label">Durasi Pengerjaan (menit) *</label><input type="number" id="examDurasi" class="input-cbt" required value="115"></div>
-            <div><label class="field-label">Passing Score *</label><input type="number" id="examPassing" class="input-cbt" required value="500"></div>
-            <div><label class="field-label">Tanggal & Jam Buka *</label><input type="datetime-local" id="examBuka" class="input-cbt" required></div>
-            <div><label class="field-label">Tanggal & Jam Tutup *</label><input type="datetime-local" id="examTutup" class="input-cbt" required></div>
+            <div><label class="field-label">Durasi Pengerjaan (menit) *</label><input type="number" id="examDurasi" class="input-cbt" required value="115" min="5" max="600"></div>
+            <div><label class="field-label">Passing Score *</label><input type="number" id="examPassing" class="input-cbt" required value="500" min="0" max="1000"></div>
+            <div><label class="field-label">Tanggal &amp; Jam Buka *</label><input type="datetime-local" id="examBuka" class="input-cbt" required></div>
+            <div><label class="field-label">Tanggal &amp; Jam Tutup *</label><input type="datetime-local" id="examTutup" class="input-cbt" required></div>
+          </div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-color);display:grid;gap:10px;">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="examAcakSoal" checked style="margin-top:3px;width:16px;height:16px;accent-color:var(--primary);">
+              <span>
+                <strong>Acak Urutan Soal per Peserta</strong>
+                <span style="display:block;font-size:12px;color:var(--text-muted);">Urutan butir soal diacak secara unik per peserta dengan tetap menjaga keutuhan grup Teks Bacaan (Reading) &amp; Audio Percakapan (Listening Part B/C).</span>
+              </span>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="examAcakJawaban" checked style="margin-top:3px;width:16px;height:16px;accent-color:var(--primary);">
+              <span>
+                <strong>Acak Urutan Pilihan Jawaban (A / B / C / D)</strong>
+                <span style="display:block;font-size:12px;color:var(--text-muted);">Posisi opsi pilihan ganda diacak deterministik per peserta untuk mencegah kerja sama di ruang ujian.</span>
+              </span>
+            </label>
           </div>
         </div>
         <div class="sticky-actionbar">
@@ -721,7 +779,7 @@
       <div style="background:var(--primary-50);border:1px solid var(--primary-100);color:var(--primary-dark);border-radius:var(--radius-card);padding:12px 16px;font-size:12.5px;margin-bottom:18px;display:flex;align-items:flex-start;gap:10px;">
         <i class="bi bi-shield-lock-fill" style="font-size:16px;margin-top:2px;"></i>
         <div>
-          <strong>Autentikasi Berbasis Email Terdaftar (Tanpa Password):</strong> Hanya alamat email yang terdaftar dan berstatus aktif di bawah ini yang dapat masuk ke Portal Staf. Jaga kerahasiaan alamat email Administrator serta segera ubah email bawaan sebelum digunakan untuk ujian produksi.
+          <strong>Keamanan Berlapis (Google Sign-In OAuth + Email &amp; PIN 6 Digit):</strong> Hanya akun email yang terdaftar di bawah ini yang diizinkan mengakses Portal Staf menggunakan verifikasi Akun Google resmi dan/atau PIN keamanan 6 digit terenkripsi (dilengkapi penguncian otomatis anti-<em>brute-force</em>).
         </div>
       </div>
 
@@ -987,6 +1045,40 @@
           </div>
         </div>
 
+        <!-- Modul 6: Keamanan Autentikasi Staf (Google OAuth 2.0 & PIN) -->
+        <div class="form-section-card">
+          <div class="fs-title"><i class="bi bi-google"></i> Keamanan Login Staf (Google Sign-In OAuth &amp; PIN)</div>
+          <div class="fs-sub">Hubungkan Google OAuth 2.0 Client ID agar Dosen &amp; Administrator dapat masuk menggunakan tombol Google resmi yang digabung dengan proteksi PIN 6 digit.</div>
+          <div class="form-grid-2">
+            <div>
+              <label class="field-label" for="settingGoogleClientId">Google OAuth 2.0 Client ID</label>
+              <input type="text" id="settingGoogleClientId" class="input-cbt" placeholder="Contoh: 1234567890-abcdefg.apps.googleusercontent.com">
+              <div class="field-help">Kosongkan sementara jika belum dibuat (login Email + PIN 6 digit tetap aktif penuh).</div>
+            </div>
+            <div>
+              <label class="field-label" for="settingGoogleAuthMode">Kebijakan Keamanan Saat Login Google</label>
+              <select id="settingGoogleAuthMode" class="input-cbt">
+                <option value="google_plus_pin" selected>Gabungan 2 Lapis: Verifikasi Google OAuth + PIN 6 Digit (Rekomendasi)</option>
+                <option value="google_direct">Single Sign-On: Masuk Langsung jika Email Google Terdaftar</option>
+              </select>
+              <div class="field-help">Mode gabungan mewajibkan verifikasi kepemilikan akun Google sekaligus PIN 6 digit staf.</div>
+            </div>
+          </div>
+
+          <details style="margin-top:14px;background:var(--bg-canvas);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;font-size:12.5px;">
+            <summary style="cursor:pointer;font-weight:600;color:var(--primary);">
+              <i class="bi bi-journal-code"></i> Panduan Cepat Menghubungkan Google Client ID (Klik untuk Membuka)
+            </summary>
+            <ol style="margin:10px 0 4px 18px;padding:0;line-height:1.65;color:var(--text-secondary);">
+              <li>Buka <strong>Google Cloud Console</strong> (<code>https://console.cloud.google.com/apis/credentials</code>) dan pilih atau buat Project baru.</li>
+              <li>Pada menu <strong>OAuth consent screen</strong>, pilih <em>External</em>, isi nama aplikasi (mis. <strong>CBT Bahasa</strong>) dan email Anda, lalu simpan.</li>
+              <li>Buka menu <strong>Credentials &rarr; + Create Credentials &rarr; OAuth client ID</strong>, lalu pilih Application type: <strong>Web application</strong>.</li>
+              <li>Pada bagian <strong>Authorized JavaScript origins</strong>, tambahkan alamat domain aplikasi ini: <code id="currentOriginHint" style="font-weight:700;color:var(--primary);">https://domain-vercel-anda.vercel.app</code> (dan <code>http://localhost:3000</code> bila diuji lokal).</li>
+              <li>Klik <strong>Create</strong>, salin nilai <strong>Client ID</strong> (berakhiran <code>.apps.googleusercontent.com</code>), tempelkan pada kolom di atas, lalu klik <strong>Simpan Seluruh Pengaturan Sistem</strong>.</li>
+            </ol>
+          </details>
+        </div>
+
         <div class="sticky-actionbar">
           <button type="submit" class="btn-cbt btn-cbt-primary" style="padding:12px 24px;">
             <i class="bi bi-check2-circle"></i> Simpan Seluruh Pengaturan Sistem
@@ -1009,22 +1101,37 @@
 <!-- MODALS (shared) -->
 <!-- ============================================================ -->
 
-<!-- Modal Anti-Cheat Focus Guard -->
-<div class="cheat-guard-overlay" id="modalCheatGuard" style="display:none;">
-  <div class="cheat-guard-box">
-    <div style="width:54px;height:54px;border-radius:50%;background:rgba(239,68,68,0.15);color:var(--danger);font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;">
-      <i class="bi bi-shield-exclamation"></i>
+<div class="modal-overlay" id="modalChangeOwnPin">
+  <div class="modal-cbt">
+    <div class="modal-header-cbt">
+      <span><i class="bi bi-shield-lock"></i> Ubah PIN Keamanan Saya (6 Digit)</span>
+      <button class="btn-cbt-ghost" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalChangeOwnPin')">&times;</button>
     </div>
-    <h3 style="font-size:18px;font-family:'Poppins';font-weight:700;color:var(--danger);margin:0 0 8px 0;">Peringatan Pengawasan Ujian!</h3>
-    <p style="font-size:13.5px;color:var(--text-heading);line-height:1.6;margin:0 0 14px 0;">
-      Anda terdeteksi <strong>berpindah tab atau meninggalkan jendela ujian</strong>. Seluruh aktivitas ini dicatat ke log pengawasan pengawas.
-    </p>
-    <div style="background:var(--bg-canvas);border:1px solid var(--border-color);border-radius:var(--radius-input);padding:10px 14px;font-size:13px;margin-bottom:18px;">
-      Pelanggaran ke: <strong id="cheatViolationCount" style="color:var(--danger);font-size:15px;">1</strong> / <span id="cheatMaxTolerance">3</span> kali toleransi
-    </div>
-    <button type="button" class="btn-cbt btn-cbt-primary" style="width:100%;justify-content:center;padding:12px;" onclick="closeCheatWarningModal()">
-      <i class="bi bi-arrow-return-left"></i> Saya Mengerti & Kembali Ujian
-    </button>
+    <form onsubmit="submitChangeOwnPin(event)">
+      <div class="modal-body-cbt">
+        <div id="mustChangePinAlert" style="display:none;background:var(--warning-bg);color:var(--warning-text);border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px;">
+          <i class="bi bi-exclamation-triangle-fill"></i> Akun Anda masih menggunakan PIN awal bawaan (<code>123456</code>). Demi keamanan, segera perbarui ke PIN 6 angka pribadi Anda.
+        </div>
+        <label class="field-label" for="ownOldPin">PIN Saat Ini *</label>
+        <input type="password" id="ownOldPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Masukkan 6 digit PIN lama" required>
+        <div style="height:12px;"></div>
+        <div class="form-grid-2">
+          <div>
+            <label class="field-label" for="ownNewPin">PIN Baru (6 Angka) *</label>
+            <input type="password" id="ownNewPin" class="input-cbt" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6 digit angka" required>
+          </div>
+          <div>
+            <label class="field-label" for="ownConfirmPin">Ulangi PIN Baru *</label>
+            <input type="password" id="ownConfirmPin" class="input-cbt" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="Ulangi 6 digit" required>
+          </div>
+        </div>
+        <small style="display:block;margin-top:8px;font-size:11.5px;color:var(--text-muted);">Gunakan kombinasi 6 angka yang hanya diketahui oleh Anda (hindari <code>123456</code> atau <code>000000</code>).</small>
+      </div>
+      <div class="modal-footer-cbt">
+        <button type="button" class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalChangeOwnPin')">Batal</button>
+        <button type="submit" class="btn-cbt btn-cbt-primary"><i class="bi bi-check-lg"></i> Simpan PIN Baru</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1037,9 +1144,12 @@
       <label class="field-label">Nama Lengkap &amp; Gelar Akademik *</label>
       <input type="text" id="newLecturerName" class="input-cbt" placeholder="Dr. Siti Rahmawati, M.Pd." required>
       <div style="height:14px;"></div>
-      <label class="field-label">Email Terdaftar (Untuk Login Tanpa Password) *</label>
+      <label class="field-label">Email Terdaftar (Untuk Google Sign-In &amp; Login PIN) *</label>
       <input type="email" id="newLecturerEmail" class="input-cbt" placeholder="siti.rahmawati@kampus.ac.id" required>
-      <small style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Pastikan alamat email benar. Dosen dapat langsung masuk menggunakan email ini di Portal Staf.</small>
+      <div style="height:14px;"></div>
+      <label class="field-label" id="lblLecturerPinField">PIN Keamanan 6 Digit</label>
+      <input type="password" id="newLecturerPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Contoh: 482910 (kosongkan = PIN awal 123456)">
+      <small id="helpLecturerPinField" style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Isi 6 digit angka. Jika dikosongkan saat tambah baru, PIN awal adalah <code>123456</code> dan dosen akan diminta menggantinya saat login.</small>
     </div>
     <div class="modal-footer-cbt">
       <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalAddLecturer')">Batal</button>
@@ -1050,16 +1160,19 @@
 
 <div class="modal-overlay" id="modalAddAdmin">
   <div class="modal-cbt">
-    <div class="modal-header-cbt"><span id="modalAdminTitle"><i class="bi bi-shield-plus"></i> Tambah Email Administrator</span>
+    <div class="modal-header-cbt"><span id="modalAdminTitle"><i class="bi bi-shield-plus"></i> Tambah Akun Administrator</span>
       <button class="btn-cbt-ghost" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;" onclick="closeModal('modalAddAdmin')">&times;</button></div>
     <div class="modal-body-cbt">
       <input type="hidden" id="editAdminId" value="">
       <label class="field-label">Nama Administrator *</label>
       <input type="text" id="newAdminName" class="input-cbt" placeholder="Admin Utama Pusat Bahasa" required>
       <div style="height:14px;"></div>
-      <label class="field-label">Email Terdaftar (Hak Akses Penuh Admin) *</label>
+      <label class="field-label">Email Terdaftar (Google Sign-In &amp; Login PIN Admin) *</label>
       <input type="email" id="newAdminEmail" class="input-cbt" placeholder="admin.utama@kampus.ac.id" required>
-      <small style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Hanya daftarkan alamat email yang tepercaya dan rahasia karena login Admin memiliki akses penuh tanpa kata sandi.</small>
+      <div style="height:14px;"></div>
+      <label class="field-label" id="lblAdminPinField">PIN Keamanan 6 Digit</label>
+      <input type="password" id="newAdminPin" class="input-cbt" inputmode="numeric" maxlength="6" placeholder="Contoh: 739204 (kosongkan = PIN awal 123456)">
+      <small id="helpAdminPinField" style="display:block;margin-top:6px;font-size:12px;color:var(--text-muted);">Isi 6 digit angka untuk otorisasi Administrator. Saat mengedit akun, kosongkan kolom ini jika tidak ingin mereset PIN.</small>
     </div>
     <div class="modal-footer-cbt">
       <button class="btn-cbt btn-cbt-ghost" onclick="closeModal('modalAddAdmin')">Batal</button>

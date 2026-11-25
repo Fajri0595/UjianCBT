@@ -6,6 +6,7 @@
 
 const { query, queryOne } = require('../db');
 const {
+  getAuthContext,
   generateId,
   getDeterministicOptionPermutation,
   deterministicShuffle
@@ -16,13 +17,37 @@ const {
   calculateToeflSectionScaled
 } = require('./common');
 
+async function assertExamOwnership(idUjian) {
+  if (!idUjian) return { ujian: null, error: 'ID_Ujian wajib disertakan.' };
+  const ujian = await queryOne('SELECT * FROM ujian WHERE "ID_Ujian" = $1', [idUjian]);
+  if (!ujian) return { ujian: null, error: 'Ujian tidak ditemukan.' };
+
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen' && ujian.ID_Dosen_Pembuat !== auth.userId) {
+    return {
+      ujian: null,
+      error: 'Akses ditolak: Anda hanya berwenang mengakses atau mengubah paket ujian milik Anda sendiri.'
+    };
+  }
+  return { ujian, error: null };
+}
+
 async function getAvailableExamsForParticipant(idUjianTarget) {
+  const auth = getAuthContext();
+  if (!auth || auth.role !== 'peserta') {
+    return createResponse(false, null, 'Sesi peserta tidak valid. Silakan masukkan kode akses kembali.');
+  }
+
+  const peserta = await queryOne('SELECT "ID_Ujian_Target", "Status_Kode" FROM peserta WHERE "ID_Peserta" = $1', [auth.userId]);
+  if (!peserta) return createResponse(false, null, 'Data peserta tidak ditemukan.');
+  const targetId = peserta.ID_Ujian_Target || idUjianTarget || '';
+
   let sql = 'SELECT * FROM ujian';
   const params = [];
 
-  if (idUjianTarget && String(idUjianTarget).trim() !== '') {
+  if (targetId && String(targetId).trim() !== '') {
     sql += ' WHERE "ID_Ujian" = $1';
-    params.push(idUjianTarget);
+    params.push(targetId);
   } else {
     sql += ' WHERE "Status" = $1';
     params.push('Aktif');
@@ -49,6 +74,16 @@ async function getAvailableExamsForParticipant(idUjianTarget) {
 }
 
 async function startExamSession(idPeserta, idUjian, clientToken) {
+  const auth = getAuthContext();
+  if (!auth || auth.role !== 'peserta') {
+    return createResponse(false, null, 'Sesi peserta tidak valid. Silakan login kembali.');
+  }
+  const verifiedPesertaId = auth.userId;
+  if (idPeserta && idPeserta !== verifiedPesertaId) {
+    return createResponse(false, null, 'Akses ditolak: Identitas sesi peserta tidak cocok.');
+  }
+  idPeserta = verifiedPesertaId;
+
   const peserta = await queryOne('SELECT * FROM peserta WHERE "ID_Peserta" = $1', [idPeserta]);
   if (!peserta) return createResponse(false, null, 'Data peserta tidak valid.');
 
@@ -60,8 +95,9 @@ async function startExamSession(idPeserta, idUjian, clientToken) {
     return createResponse(false, null, 'Kode akses Anda tidak terdaftar untuk paket ujian ini.');
   }
 
-  // ── PROTEKSI 1: Validasi Kunci Sesi Perangkat ──
-  if (peserta.Active_Token && clientToken && peserta.Active_Token !== clientToken) {
+  // ── PROTEKSI 1: Validasi Ketat Kunci Sesi Perangkat Tunggal ──
+  const activeClientToken = auth.rawToken || clientToken || '';
+  if (peserta.Active_Token && peserta.Active_Token !== activeClientToken) {
     return createResponse(
       false,
       null,
@@ -130,19 +166,23 @@ async function startExamSession(idPeserta, idUjian, clientToken) {
     for (const sKey of sortedSectionKeys) {
       const list = sections[sKey];
       const clusters = [];
-      let currentPassageCluster = null;
+      let currentMediaCluster = null;
 
       for (const q of list) {
         const pText = (q.Passage_Teks || '').trim();
-        if (pText) {
-          if (currentPassageCluster && currentPassageCluster.key === pText) {
-            currentPassageCluster.items.push(q);
+        const aLink = (q.Link_Audio || '').trim();
+        // Pertahankan kohesi soal berbagi Teks Bacaan (Reading) maupun Audio Percakapan/Talk (Listening Part B/C)
+        const groupKey = pText ? `P:${pText}` : (aLink ? `A:${aLink}` : '');
+
+        if (groupKey) {
+          if (currentMediaCluster && currentMediaCluster.key === groupKey) {
+            currentMediaCluster.items.push(q);
           } else {
-            currentPassageCluster = { key: pText, items: [q] };
-            clusters.push(currentPassageCluster);
+            currentMediaCluster = { key: groupKey, items: [q] };
+            clusters.push(currentMediaCluster);
           }
         } else {
-          currentPassageCluster = null;
+          currentMediaCluster = null;
           clusters.push({ key: q.ID_Soal, items: [q] });
         }
       }
@@ -168,25 +208,181 @@ async function startExamSession(idPeserta, idUjian, clientToken) {
 
   let sessionStartISO;
   let isResumed = false;
+  let draftAnswers = {};
+  let stateMeta = {};
+  let cheatViolations = 0;
 
   if (existingInProgress && existingInProgress.Waktu_Mulai) {
     sessionStartISO = new Date(existingInProgress.Waktu_Mulai).toISOString();
     isResumed = true;
+    try {
+      draftAnswers = typeof existingInProgress.Jawaban_JSON === 'string'
+        ? JSON.parse(existingInProgress.Jawaban_JSON || '{}')
+        : (existingInProgress.Jawaban_JSON || {});
+    } catch (e) { draftAnswers = {}; }
+    try {
+      stateMeta = typeof existingInProgress.State_Meta_JSON === 'string'
+        ? JSON.parse(existingInProgress.State_Meta_JSON || '{}')
+        : (existingInProgress.State_Meta_JSON || {});
+    } catch (e) { stateMeta = {}; }
+    cheatViolations = Number(existingInProgress.Jumlah_Pelanggaran) || 0;
   } else {
     sessionStartISO = now.toISOString();
     const idHasilTemp = generateId('HSL');
     await query(
-      `INSERT INTO hasil_ujian ("ID_Hasil", "ID_Peserta", "Nama_Peserta", "ID_Ujian", "Jawaban_JSON", "Skor_Listening", "Skor_Grammar", "Skor_Reading", "Skor_Total", "Status_Lulus", "Waktu_Mulai", "Status")
-       VALUES ($1, $2, $3, $4, '{}', 0, 0, 0, 0, 'Sedang Berjalan', $5, 'Sedang Berjalan')`,
+      `INSERT INTO hasil_ujian ("ID_Hasil", "ID_Peserta", "Nama_Peserta", "ID_Ujian", "Jawaban_JSON", "State_Meta_JSON", "Jumlah_Pelanggaran", "Terakhir_Sinkron", "Skor_Listening", "Skor_Grammar", "Skor_Reading", "Skor_Total", "Status_Lulus", "Waktu_Mulai", "Status")
+       VALUES ($1, $2, $3, $4, '{}', '{}', 0, NOW(), 0, 0, 0, 0, 'Sedang Berjalan', $5, 'Sedang Berjalan')`,
       [idHasilTemp, idPeserta, peserta.Nama || '', idUjian, sessionStartISO]
     );
   }
 
   await logActivity('Peserta', peserta.Nama || idPeserta, isResumed ? 'Lanjutkan Ujian (Resume)' : 'Mulai Ujian', idUjian);
-  return createResponse(true, { ujian, soal: soalUntukPeserta, waktuMulaiServer: sessionStartISO, isResumed }, 'OK');
+  return createResponse(
+    true,
+    {
+      ujian,
+      soal: soalUntukPeserta,
+      waktuMulaiServer: sessionStartISO,
+      isResumed,
+      draftAnswers,
+      stateMeta,
+      cheatViolations
+    },
+    'OK'
+  );
+}
+
+/**
+ * Cloud Auto-Save Progres Jawaban & Status Sesi Peserta ke PostgreSQL
+ * Menjamin jawaban tetap utuh walau perangkat peserta mati/pindah komputer.
+ */
+async function syncExamProgress(idUjian, jawabanObj, stateMetaObj) {
+  const auth = getAuthContext();
+  if (!auth || auth.role !== 'peserta') {
+    return createResponse(false, null, 'Sesi peserta tidak valid.');
+  }
+  const idPeserta = auth.userId;
+  if (!idUjian) return createResponse(false, null, 'ID_Ujian wajib disertakan.');
+
+  const pesertaRow = await queryOne('SELECT "Active_Token" FROM peserta WHERE "ID_Peserta" = $1', [idPeserta]);
+  if (!pesertaRow) return createResponse(false, null, 'Data peserta tidak ditemukan.');
+  if (pesertaRow.Active_Token && pesertaRow.Active_Token !== auth.rawToken) {
+    return createResponse(false, { sessionReplaced: true }, 'Sesi perangkat ini sudah tidak aktif.');
+  }
+
+  const inProgress = await queryOne(
+    `SELECT "ID_Hasil", "State_Meta_JSON", "Jumlah_Pelanggaran"
+     FROM hasil_ujian
+     WHERE "ID_Peserta" = $1 AND "ID_Ujian" = $2 AND "Status" = 'Sedang Berjalan'`,
+    [idPeserta, idUjian]
+  );
+  if (!inProgress) {
+    return createResponse(false, null, 'Sesi pengerjaan aktif tidak ditemukan atau ujian telah selesai.');
+  }
+
+  const safeAnswers = (jawabanObj && typeof jawabanObj === 'object') ? jawabanObj : {};
+  let prevMeta = {};
+  try {
+    prevMeta = typeof inProgress.State_Meta_JSON === 'string'
+      ? JSON.parse(inProgress.State_Meta_JSON || '{}')
+      : (inProgress.State_Meta_JSON || {});
+  } catch (e) { prevMeta = {}; }
+
+  const incomingMeta = (stateMetaObj && typeof stateMetaObj === 'object') ? stateMetaObj : {};
+  // Proteksi kuota putar audio agar tidak bisa diturunkan (monotonic max)
+  const mergedAudioPlays = { ...(prevMeta.audioPlayCounts || {}) };
+  if (incomingMeta.audioPlayCounts && typeof incomingMeta.audioPlayCounts === 'object') {
+    for (const [k, v] of Object.entries(incomingMeta.audioPlayCounts)) {
+      mergedAudioPlays[k] = Math.max(Number(mergedAudioPlays[k]) || 0, Number(v) || 0);
+    }
+  }
+
+  const finalMeta = {
+    flaggedQuestions: incomingMeta.flaggedQuestions || prevMeta.flaggedQuestions || {},
+    audioPlayCounts: mergedAudioPlays,
+    currentQuestionIndex: Number(incomingMeta.currentQuestionIndex) || 0
+  };
+
+  await query(
+    `UPDATE hasil_ujian
+     SET "Jawaban_JSON" = $1, "State_Meta_JSON" = $2, "Terakhir_Sinkron" = NOW()
+     WHERE "ID_Hasil" = $3`,
+    [JSON.stringify(safeAnswers), JSON.stringify(finalMeta), inProgress.ID_Hasil]
+  );
+
+  return createResponse(
+    true,
+    {
+      syncedAt: new Date().toISOString(),
+      answeredCount: Object.keys(safeAnswers).length
+    },
+    'Progres tersimpan ke server.'
+  );
+}
+
+/**
+ * Pencatatan Pelanggaran Anti-Curang Real-Time ke Server & Audit Log Pengawas
+ */
+async function recordExamViolation(idUjian, reason, clientCount) {
+  const auth = getAuthContext();
+  if (!auth || auth.role !== 'peserta') {
+    return createResponse(false, null, 'Sesi peserta tidak valid.');
+  }
+  const idPeserta = auth.userId;
+  const cleanReason = String(reason || 'Aktivitas mencurigakan terdeteksi').substring(0, 220);
+
+  const inProgress = await queryOne(
+    `SELECT "ID_Hasil", "Jumlah_Pelanggaran", "Nama_Peserta"
+     FROM hasil_ujian
+     WHERE "ID_Peserta" = $1 AND "ID_Ujian" = $2 AND "Status" = 'Sedang Berjalan'`,
+    [idPeserta, idUjian]
+  );
+
+  let updatedCount = Math.max(1, Number(clientCount) || 1);
+  let namaPeserta = auth.name || idPeserta;
+
+  if (inProgress) {
+    namaPeserta = inProgress.Nama_Peserta || namaPeserta;
+    updatedCount = Math.max((Number(inProgress.Jumlah_Pelanggaran) || 0) + 1, updatedCount);
+    await query(
+      `UPDATE hasil_ujian
+       SET "Jumlah_Pelanggaran" = $1, "Terakhir_Sinkron" = NOW()
+       WHERE "ID_Hasil" = $2`,
+      [updatedCount, inProgress.ID_Hasil]
+    );
+  }
+
+  await logActivity(
+    'Pengawas Otomatis',
+    namaPeserta,
+    'Pelanggaran Integritas Ujian',
+    `[${idUjian}] Pelanggaran ke-${updatedCount}: ${cleanReason}`
+  );
+
+  return createResponse(true, { cheatViolations: updatedCount }, 'Pelanggaran tercatat di server.');
 }
 
 async function submitExamAnswers(idPeserta, namaPeserta, idUjian, jawabanObj, waktuMulaiISO) {
+  const auth = getAuthContext();
+  if (!auth || auth.role !== 'peserta') {
+    return createResponse(false, null, 'Sesi peserta tidak valid. Jawaban tidak dapat dikirim tanpa otorisasi sesi.');
+  }
+  if (idPeserta && idPeserta !== auth.userId) {
+    return createResponse(false, null, 'Akses ditolak: Identitas sesi peserta tidak sesuai.');
+  }
+  idPeserta = auth.userId;
+
+  const pesertaRow = await queryOne('SELECT "Nama", "Active_Token" FROM peserta WHERE "ID_Peserta" = $1', [idPeserta]);
+  if (!pesertaRow) return createResponse(false, null, 'Data peserta tidak ditemukan.');
+  if (pesertaRow.Active_Token && pesertaRow.Active_Token !== auth.rawToken) {
+    return createResponse(
+      false,
+      null,
+      '⚠️ Pengiriman ditolak: Sesi perangkat ini sudah digantikan oleh perangkat lain.'
+    );
+  }
+  namaPeserta = pesertaRow.Nama || namaPeserta || auth.name || '';
+
   const existingFinal = await queryOne(
     `SELECT * FROM hasil_ujian WHERE "ID_Peserta" = $1 AND "ID_Ujian" = $2 AND "Status" = 'Selesai'`,
     [idPeserta, idUjian]
@@ -330,9 +526,41 @@ async function submitExamAnswers(idPeserta, namaPeserta, idUjian, jawabanObj, wa
     }`
   );
 
+  // Penegakan Kebijakan Privasi Skor langsung di Sisi Server (mencegah bocor via DevTools Network)
+  const isScoreHeld = String(settingsMap.releaseScore || 'instant') === 'held';
+  const isBreakdownHidden = String(settingsMap.showSectionBreakdown || '1') === '0';
+
+  if (isScoreHeld) {
+    return createResponse(
+      true,
+      {
+        scoreHeld: true,
+        statusLulus: 'Menunggu Verifikasi Penguji'
+      },
+      'Ujian berhasil dikirim. Nilai akhir ditahan sesuai kebijakan institusi.'
+    );
+  }
+
+  if (isBreakdownHidden) {
+    return createResponse(
+      true,
+      {
+        scoreHeld: false,
+        sectionHidden: true,
+        skorTotal,
+        statusLulus,
+        passingScore,
+        skalaMax
+      },
+      'Ujian berhasil dikirim.'
+    );
+  }
+
   return createResponse(
     true,
     {
+      scoreHeld: false,
+      sectionHidden: false,
       skorTotal,
       statusLulus,
       skorListening: skorSesi.Listening,
@@ -352,14 +580,22 @@ async function submitExamAnswers(idPeserta, namaPeserta, idUjian, jawabanObj, wa
 }
 
 // ────────────────────────────────────────────────────────────
-// 4. DOSEN — UJIAN & BANK SOAL
+// 4. DOSEN — UJIAN & BANK SOAL (DENGAN VALIDASI KEPEMILIKAN ANTI-IDOR)
 // ────────────────────────────────────────────────────────────
 async function getExamsByLecturer(idDosen) {
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen') {
+    idDosen = auth.userId;
+  }
+
   let sql = 'SELECT * FROM ujian';
   const params = [];
   if (idDosen && idDosen !== 'ADMIN') {
     sql += ' WHERE "ID_Dosen_Pembuat" = $1';
     params.push(idDosen);
+  } else if (idDosen === 'ADMIN') {
+    sql += ' WHERE "ID_Dosen_Pembuat" = $1';
+    params.push('ADMIN');
   }
   sql += ' ORDER BY "Tanggal_Buka" DESC NULLS LAST';
 
@@ -383,6 +619,11 @@ async function getExamsByLecturer(idDosen) {
 }
 
 async function createExam(examObj) {
+  const auth = getAuthContext();
+  if (auth && auth.role === 'dosen') {
+    examObj.ID_Dosen_Pembuat = auth.userId;
+  }
+
   examObj.ID_Ujian = generateId('UJN');
   examObj.Kode_Ujian = examObj.ID_Ujian;
   examObj.Status = examObj.Status || 'Draft';
@@ -407,12 +648,17 @@ async function createExam(examObj) {
     ]
   );
 
-  await logActivity('Dosen Penguji', examObj.ID_Dosen_Pembuat || 'ADMIN', 'Buat Ujian Baru', examObj.Nama_Ujian);
+  await logActivity('Dosen Penguji', auth?.name || examObj.ID_Dosen_Pembuat || 'ADMIN', 'Buat Ujian Baru', examObj.Nama_Ujian);
   return createResponse(true, examObj, 'Ujian berhasil dibuat.');
 }
 
 async function updateExam(examObj) {
   if (!examObj || !examObj.ID_Ujian) return createResponse(false, null, 'ID_Ujian wajib disertakan.');
+  const { error: ownErr } = await assertExamOwnership(examObj.ID_Ujian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
+  const auth = getAuthContext();
+  const canReassign = auth && auth.role === 'admin' && examObj.ID_Dosen_Pembuat;
 
   await query(
     `UPDATE ujian
@@ -425,8 +671,9 @@ async function updateExam(examObj) {
          "Status" = COALESCE($7, "Status"),
          "Acak_Jawaban" = COALESCE($8, "Acak_Jawaban"),
          "Kunci_Setelah_Submit" = COALESCE($9, "Kunci_Setelah_Submit"),
-         "Acak_Soal" = COALESCE($10, "Acak_Soal")
-     WHERE "ID_Ujian" = $11`,
+         "Acak_Soal" = COALESCE($10, "Acak_Soal"),
+         "ID_Dosen_Pembuat" = COALESCE($11, "ID_Dosen_Pembuat")
+     WHERE "ID_Ujian" = $12`,
     [
       examObj.Nama_Ujian,
       examObj.Deskripsi,
@@ -438,6 +685,7 @@ async function updateExam(examObj) {
       examObj.Acak_Jawaban !== undefined ? Boolean(examObj.Acak_Jawaban) : null,
       examObj.Kunci_Setelah_Submit !== undefined ? Boolean(examObj.Kunci_Setelah_Submit) : null,
       examObj.Acak_Soal !== undefined ? Boolean(examObj.Acak_Soal) : null,
+      canReassign ? examObj.ID_Dosen_Pembuat : null,
       examObj.ID_Ujian
     ]
   );
@@ -445,7 +693,42 @@ async function updateExam(examObj) {
   return createResponse(true, examObj, 'Ujian berhasil diperbarui.');
 }
 
+async function deleteExam(idUjian) {
+  const { ujian, error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
+  const auth = getAuthContext();
+  const completedRes = await queryOne(
+    `SELECT COUNT(*)::int AS total FROM hasil_ujian WHERE "ID_Ujian" = $1 AND "Status" = 'Selesai'`,
+    [idUjian]
+  );
+  const completedCount = completedRes ? completedRes.total : 0;
+
+  if (completedCount > 0 && (!auth || auth.role !== 'admin')) {
+    return createResponse(
+      false,
+      null,
+      `Paket ujian ini sudah memiliki ${completedCount} hasil nilai peserta. Demi integritas arsip akademik, hanya Administrator yang dapat menghapus permanen ujian yang telah dikerjakan.`
+    );
+  }
+
+  await query('DELETE FROM soal WHERE "ID_Ujian" = $1', [idUjian]);
+  await query(`DELETE FROM hasil_ujian WHERE "ID_Ujian" = $1 AND "Status" = 'Sedang Berjalan'`, [idUjian]);
+  await query('DELETE FROM ujian WHERE "ID_Ujian" = $1', [idUjian]);
+
+  await logActivity(
+    auth?.role === 'admin' ? 'Administrator' : 'Dosen Penguji',
+    auth?.name || 'Staf',
+    'Hapus Paket Ujian',
+    `${ujian.Nama_Ujian} (${idUjian})`
+  );
+  return createResponse(true, null, `Paket ujian "${ujian.Nama_Ujian}" beserta seluruh butir soalnya berhasil dihapus.`);
+}
+
 async function importQuestionsBatch(idUjian, questionsArray) {
+  const { error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, { success: 0, errors: [] }, ownErr);
+
   const results = { success: 0, errors: [] };
   if (!Array.isArray(questionsArray)) return createResponse(false, results, 'Data soal tidak valid.');
 
@@ -494,17 +777,30 @@ async function importQuestionsBatch(idUjian, questionsArray) {
 }
 
 async function getQuestionsByExam(idUjian) {
+  const { error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
   const { rows } = await query('SELECT * FROM soal WHERE "ID_Ujian" = $1 ORDER BY "Nomor" ASC', [idUjian]);
   return createResponse(true, rows, 'OK');
 }
 
 async function deleteQuestion(idSoal) {
+  const soalRow = await queryOne('SELECT "ID_Ujian" FROM soal WHERE "ID_Soal" = $1', [idSoal]);
+  if (!soalRow) return createResponse(false, null, 'Butir soal tidak ditemukan.');
+  const { error: ownErr } = await assertExamOwnership(soalRow.ID_Ujian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
   await query('DELETE FROM soal WHERE "ID_Soal" = $1', [idSoal]);
   return createResponse(true, null, 'Soal berhasil dihapus.');
 }
 
 async function updateQuestion(soalObj) {
   if (!soalObj || !soalObj.ID_Soal) return createResponse(false, null, 'ID_Soal wajib disertakan.');
+  const soalRow = await queryOne('SELECT "ID_Ujian" FROM soal WHERE "ID_Soal" = $1', [soalObj.ID_Soal]);
+  if (!soalRow) return createResponse(false, null, 'Butir soal tidak ditemukan.');
+  const { error: ownErr } = await assertExamOwnership(soalRow.ID_Ujian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
   const answerKey = String(soalObj.Jawaban_Benar || '').toUpperCase().trim();
   if (!['A', 'B', 'C', 'D'].includes(answerKey)) {
     return createResponse(false, null, 'Jawaban_Benar harus A, B, C, atau D.');
@@ -535,6 +831,9 @@ async function updateQuestion(soalObj) {
 }
 
 async function addSingleQuestion(idUjian, soalObj) {
+  const { error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
   if (!soalObj.Sesi || !soalObj.Pertanyaan || !soalObj.Jawaban_Benar) {
     return createResponse(false, null, 'Kolom Sesi, Pertanyaan, dan Jawaban_Benar wajib diisi.');
   }
@@ -575,6 +874,9 @@ async function addSingleQuestion(idUjian, soalObj) {
 }
 
 async function getExamResultsForLecturer(idUjian) {
+  const { error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, null, ownErr);
+
   const { rows } = await query(
     `SELECT "ID_Hasil", "ID_Peserta", "Nama_Peserta", "ID_Ujian", "Skor_Listening", "Skor_Grammar", "Skor_Reading", "Skor_Total", "Status_Lulus", "Waktu_Mulai", "Waktu_Selesai", "Status"
      FROM hasil_ujian
@@ -586,6 +888,8 @@ async function getExamResultsForLecturer(idUjian) {
 }
 
 async function getItemAnalysis(idUjian) {
+  const { error: ownErr } = await assertExamOwnership(idUjian);
+  if (ownErr) return createResponse(false, null, ownErr);
   const soalRes = await query('SELECT * FROM soal WHERE "ID_Ujian" = $1 ORDER BY "Nomor" ASC', [idUjian]);
   const hasilRes = await query(`SELECT * FROM hasil_ujian WHERE "ID_Ujian" = $1 AND "Status" = 'Selesai' ORDER BY "Skor_Total" DESC`, [idUjian]);
   const hasilSelesai = hasilRes.rows;
@@ -691,10 +995,13 @@ async function getItemAnalysis(idUjian) {
 module.exports = {
   getAvailableExamsForParticipant,
   startExamSession,
+  syncExamProgress,
+  recordExamViolation,
   submitExamAnswers,
   getExamsByLecturer,
   createExam,
   updateExam,
+  deleteExam,
   importQuestionsBatch,
   getQuestionsByExam,
   deleteQuestion,

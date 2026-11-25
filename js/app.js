@@ -42,10 +42,11 @@
         portalHeading: 'Sistem Ujian Kemahiran Kebahasaan',
         tabParticipant: 'Peserta Ujian', tabStaff: 'Dosen & Staf',
         entryTitle: 'Registrasi Sesi Ujian', entrySubtitle: 'Lengkapi identitas resmi dan masukkan kode akses dari pengawas untuk memulai sesi ujian.',
-        staffLoginTitle: 'Login Dosen & Administrator', staffLoginSubtitle: 'Pilih peran Anda dan masukkan alamat email resmi yang telah terdaftar di sistem.',
+        staffLoginTitle: 'Login Dosen & Administrator', staffLoginSubtitle: 'Verifikasi identitas menggunakan Email & PIN 6 digit atau Akun Google terdaftar.',
         roleAdminTitle: 'Administrator', roleAdminSub: 'Kelola Sistem & Akses',
         roleDosenTitle: 'Dosen Penguji', roleDosenSub: 'Bank Soal & Evaluasi',
         lblParticipantContact: 'Email Institusi / Nomor WhatsApp', lblSessionToken: 'Token Sesi',
+        lblStaffPin: 'PIN Keamanan (6 Digit)', orGoogleAuth: 'atau masuk menggunakan Google', btnGoogleSignIn: 'Masuk dengan Akun Google',
         trustHeadset: 'Siapkan perangkat audio/headset', trustAutosave: 'Auto-save jawaban aktif',
         hAvailableExams: 'Ujian Tersedia', hReviewAnswers: 'Tinjau Jawaban Anda', pReviewAnswers: 'Pastikan seluruh soal terisi sebelum submit final.',
         hExamCompleted: 'Ujian Selesai!', hMyExams: 'Ujian Saya', pMyExams: 'Kelola paket ujian kebahasaan yang Anda buat.',
@@ -58,7 +59,7 @@
         hSettings: 'Pengaturan Sistem & Parameter Ujian', pSettings: 'Konfigurasi ambang kelulusan standar dan durasi default.',
         hManageQuestions: 'Kelola Soal',
         lblFullName: 'Nama Lengkap Peserta', lblAccessCode: 'Kode Akses Ujian (Token Rombel)', btnContinue: 'Verifikasi & Mulai Sesi Ujian',
-        lblStaffEmail: 'Email Institusi / Staf Terdaftar', btnStaffLogin: 'Masuk ke Dashboard Staf',
+        lblStaffEmail: 'Email Institusi / Staf Terdaftar', btnStaffLogin: 'Masuk dengan Email & PIN',
         lblTimeLeft: 'Sisa Waktu', lblQuestionNav: 'Navigasi Soal', btnReviewAll: 'Tinjau Semua Jawaban',
         btnSubmitFinal: 'Selesaikan & Kirim Ujian (Submit Final)', lblTotalScore: 'Total Nilai Konversi (Skor TOEFL)',
         btnBackToStart: 'Kembali ke Awal', btnCreateExam: 'Buat Ujian Baru',
@@ -72,10 +73,11 @@
         portalHeading: 'Language Proficiency CBT System',
         tabParticipant: 'Exam Participant', tabStaff: 'Lecturers & Staff',
         entryTitle: 'Exam Session Registration', entrySubtitle: 'Enter your official details and the session access code provided by your proctor.',
-        staffLoginTitle: 'Lecturer & Admin Sign In', staffLoginSubtitle: 'Select your role and enter your registered institutional email address.',
+        staffLoginTitle: 'Lecturer & Admin Sign In', staffLoginSubtitle: 'Verify your identity via registered Email & 6-digit PIN or Google Account.',
         roleAdminTitle: 'Administrator', roleAdminSub: 'System & Access Control',
         roleDosenTitle: 'Examiner Lecturer', roleDosenSub: 'Question Bank & Grading',
         lblParticipantContact: 'Institutional Email / WhatsApp Number', lblSessionToken: 'Session Token',
+        lblStaffPin: 'Security PIN (6 Digits)', orGoogleAuth: 'or sign in with Google', btnGoogleSignIn: 'Sign in with Google Account',
         trustHeadset: 'Prepare headset / audio device', trustAutosave: 'Real-time answer auto-save',
         hAvailableExams: 'Available Exams', hReviewAnswers: 'Review Your Answers', pReviewAnswers: 'Make sure all questions are answered before final submit.',
         hExamCompleted: 'Exam Completed!', hMyExams: 'My Exams', pMyExams: 'Manage the language exam packages you have created.',
@@ -88,7 +90,7 @@
         hSettings: 'System Settings & Exam Parameters', pSettings: 'Configure default passing score and duration standards.',
         hManageQuestions: 'Manage Questions',
         lblFullName: 'Participant Full Name', lblAccessCode: 'Exam Access Code (Class Token)', btnContinue: 'Verify & Start Exam Session',
-        lblStaffEmail: 'Registered Institutional / Staff Email', btnStaffLogin: 'Enter Staff Dashboard',
+        lblStaffEmail: 'Registered Institutional / Staff Email', btnStaffLogin: 'Sign in with Email & PIN',
         lblTimeLeft: 'Time Remaining', lblQuestionNav: 'Question Navigator', btnReviewAll: 'Review All Answers',
         btnSubmitFinal: 'Finish & Submit Exam (Final Submit)', lblTotalScore: 'Total Converted Score (TOEFL Score)',
         btnBackToStart: 'Return to Start', btnCreateExam: 'Create New Exam',
@@ -192,6 +194,10 @@
         el.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
       });
       refreshChartsTheme();
+      if (typeof initGoogleSignInButton === 'function') {
+        _renderedGoogleClientId = null;
+        initGoogleSignInButton();
+      }
     }
     
     function toggleTheme() {
@@ -472,10 +478,12 @@
           if (!res) { restoreParticipantBtn(); showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           restoreParticipantBtn();
           if (res.success) {
+            appState.staff = null;
+            localStorage.removeItem('cbt_staff');
             appState.participant = res.data;
             localStorage.setItem('cbt_participant', JSON.stringify(res.data));
             document.getElementById('participantNameLabel').textContent = res.data.Nama;
-            document.getElementById('participantAvatar').textContent = res.data.Nama.charAt(0).toUpperCase();
+            document.getElementById('participantAvatar').textContent = (res.data.Nama || 'P').charAt(0).toUpperCase();
             showView('view-participant-app');
             loadAvailableExams();
           } else {
@@ -487,6 +495,20 @@
     }
     
     function logoutParticipant() {
+      if (typeof stopAllQuestionAudio === 'function') stopAllQuestionAudio();
+      if (appState.timerInterval) {
+        clearInterval(appState.timerInterval);
+        appState.timerInterval = null;
+      }
+      if (appState.autoSyncInterval) {
+        clearInterval(appState.autoSyncInterval);
+        appState.autoSyncInterval = null;
+      }
+      if (typeof _cloudSyncDebounceTimer !== 'undefined' && _cloudSyncDebounceTimer) {
+        clearTimeout(_cloudSyncDebounceTimer);
+        _cloudSyncDebounceTimer = null;
+      }
+      appState.currentExam = null;
       appState.participant = null;
       localStorage.removeItem('cbt_participant');
       disableExamProtection();
@@ -495,8 +517,11 @@
     }
     
     // ════════════════════════════════════════════════════════
-    // AUTH — STAFF
+    // AUTH — STAFF (HYBRID GOOGLE SIGN-IN OAUTH + EMAIL & PIN 6 DIGIT)
     // ════════════════════════════════════════════════════════
+    let _pendingGoogleIdToken = null;
+    let _renderedGoogleClientId = null;
+
     function setStaffRole(role) {
       const nextRole = role === 'dosen' ? 'dosen' : 'admin';
       appState.staffRole = nextRole;
@@ -505,8 +530,8 @@
       document.getElementById('btnRoleAdmin').classList.toggle('active', nextRole === 'admin');
       document.getElementById('btnRoleDosen').classList.toggle('active', nextRole === 'dosen');
       const emailInput = document.getElementById('sEmail');
-      if (emailInput) {
-        emailInput.placeholder = nextRole === 'admin' ? 'admin@cbtbahasa.id' : 'dosen.aris@cbtbahasa.id';
+      if (emailInput && !_pendingGoogleIdToken) {
+        emailInput.placeholder = nextRole === 'admin' ? 'admin@institusi.ac.id' : 'dosen@institusi.ac.id';
       }
       const wrapper = document.getElementById('staffEmailWrapper');
       if (wrapper) {
@@ -518,44 +543,287 @@
       const errBox = document.getElementById('staffLoginError');
       if (errBox) errBox.style.display = 'none';
     }
-    
+
+    function clearPendingGoogleToken() {
+      _pendingGoogleIdToken = null;
+      const chip = document.getElementById('googleVerifiedChip');
+      if (chip) chip.style.display = 'none';
+      const emailInput = document.getElementById('sEmail');
+      if (emailInput) {
+        emailInput.readOnly = false;
+        emailInput.value = '';
+      }
+      const btn = document.getElementById('btnStaffLoginSubmit');
+      if (btn) {
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email & PIN';
+        btn.innerHTML = `<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
+      }
+    }
+
+    function completeStaffLoginSuccess(staffData) {
+      clearPendingGoogleToken();
+      const pinField = document.getElementById('sPin');
+      if (pinField) pinField.value = '';
+      appState.participant = null;
+      localStorage.removeItem('cbt_participant');
+
+      appState.staff = staffData;
+      localStorage.setItem('cbt_staff', JSON.stringify(staffData));
+      renderStaffSidebar(staffData.role);
+      syncStaffIdentityUI(staffData);
+      showView('view-staff-app');
+      navigateTo(staffData.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
+
+      // Muat ulang pengaturan penuh (terautentikasi)
+      gasRun.withSuccessHandler(r => { if (r && r.success && r.data) applyLoadedSettings(r.data); }).getSystemSettings();
+
+      if (staffData.mustChangePin) {
+        setTimeout(() => {
+          showToast('Keamanan Akun', 'Anda masih menggunakan PIN awal (123456). Silakan ganti ke PIN 6 angka pribadi Anda.', 'warning');
+          openChangeOwnPinModal(true);
+        }, 600);
+      }
+    }
+
+    function initGoogleSignInButton() {
+      const clientId = String((appState.systemSettings && appState.systemSettings.googleClientId) || '').trim();
+      const mount = document.getElementById('googleSignInBtnMount');
+      const fallbackBtn = document.getElementById('googleFallbackBtn');
+      if (!mount || !fallbackBtn) return;
+
+      if (!clientId) {
+        mount.classList.remove('is-ready');
+        mount.innerHTML = '';
+        fallbackBtn.style.display = '';
+        _renderedGoogleClientId = null;
+        return;
+      }
+
+      if (!(window.google && window.google.accounts && window.google.accounts.id)) {
+        fallbackBtn.style.display = '';
+        return;
+      }
+
+      if (_renderedGoogleClientId === clientId && mount.childElementCount > 0) {
+        mount.classList.add('is-ready');
+        fallbackBtn.style.display = 'none';
+        return;
+      }
+
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredentialResponse,
+          ux_mode: 'popup',
+          auto_select: false
+        });
+        mount.innerHTML = '';
+        window.google.accounts.id.renderButton(mount, {
+          type: 'standard',
+          theme: getCurrentTheme() === 'dark' ? 'filled_black' : 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: 390
+        });
+        mount.classList.add('is-ready');
+        fallbackBtn.style.display = 'none';
+        _renderedGoogleClientId = clientId;
+      } catch (err) {
+        console.warn('[Google OAuth Init]', err);
+        mount.classList.remove('is-ready');
+        fallbackBtn.style.display = '';
+      }
+    }
+    window.initGoogleSignInButton = initGoogleSignInButton;
+
+    function handleGoogleFallbackClick() {
+      const clientId = String((appState.systemSettings && appState.systemSettings.googleClientId) || '').trim();
+      if (!clientId) {
+        showToast(
+          'Google Client ID Belum Diisi',
+          'Silakan masuk menggunakan Email & PIN 6 digit terlebih dahulu. Anda dapat menghubungkan Google Client ID kapan saja di menu Pengaturan Sistem Admin.',
+          'info'
+        );
+        const pinInput = document.getElementById('sPin');
+        const emailInput = document.getElementById('sEmail');
+        if (emailInput && !emailInput.value.trim()) emailInput.focus();
+        else if (pinInput) pinInput.focus();
+        return;
+      }
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        initGoogleSignInButton();
+        window.google.accounts.id.prompt();
+      } else {
+        showToast('Memuat Layanan Google', 'Pustaka Google Sign-In sedang dimuat, periksa koneksi internet Anda.', 'warning');
+      }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      const idToken = response.credential;
+      const errBox = document.getElementById('staffLoginError');
+      if (errBox) errBox.style.display = 'none';
+
+      const currentPin = (document.getElementById('sPin')?.value || '').trim();
+      const btn = document.getElementById('btnStaffLoginSubmit');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Akun Google...';
+      }
+
+      gasRun
+        .withSuccessHandler(res => {
+          if (btn) btn.disabled = false;
+          if (!res) {
+            showToast('Koneksi Terputus', 'Gagal menghubungi server saat memverifikasi Google Sign-In.', 'danger');
+            return;
+          }
+          if (!res.success) {
+            clearPendingGoogleToken();
+            if (errBox) {
+              errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message);
+              errBox.style.display = 'block';
+            }
+            return;
+          }
+          // Jika kebijakan sistem mewajibkan 2 lapis (Google OAuth + PIN 6 Digit)
+          if (res.data && res.data.requirePinStep) {
+            _pendingGoogleIdToken = idToken;
+            const chip = document.getElementById('googleVerifiedChip');
+            const chipText = document.getElementById('googleVerifiedEmailText');
+            if (chip && chipText) {
+              chipText.textContent = `Google Terverifikasi: ${res.data.email}`;
+              chip.style.display = 'flex';
+            }
+            const emailInput = document.getElementById('sEmail');
+            if (emailInput) {
+              emailInput.value = res.data.email;
+              emailInput.readOnly = true;
+            }
+            if (btn) {
+              btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
+            }
+            const pinInput = document.getElementById('sPin');
+            if (pinInput) pinInput.focus();
+            showToast('Google Terverifikasi', 'Masukkan PIN 6 digit Anda untuk menyelesaikan otorisasi berlapis.', 'success');
+            return;
+          }
+
+          completeStaffLoginSuccess(res.data);
+        })
+        .withFailureHandler(err => {
+          if (btn) btn.disabled = false;
+          showToast('Error Google OAuth', err.message, 'danger');
+        })
+        .staffLoginGoogle(appState.staffRole, idToken, currentPin);
+    }
+
     function handleStaffLogin(e) {
       e.preventDefault();
       const email = document.getElementById('sEmail').value.trim().toLowerCase();
+      const pin = (document.getElementById('sPin')?.value || '').trim();
       const errBox = document.getElementById('staffLoginError');
       errBox.style.display = 'none';
+
+      if (!/^\d{6}$/.test(pin)) {
+        errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> PIN keamanan harus terdiri dari tepat 6 digit angka.';
+        errBox.style.display = 'block';
+        return;
+      }
+
       const btn = e.target.querySelector('button[type="submit"]');
       const restoreLoginBtn = () => {
         btn.disabled = false;
+        if (_pendingGoogleIdToken) {
+          btn.innerHTML = '<i class="bi bi-shield-check"></i> <span>Verifikasi PIN &amp; Masuk</span>';
+          return;
+        }
         const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
-        const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email';
-        btn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
+        const label = (I18N[lang] && I18N[lang].btnStaffLogin) || 'Masuk dengan Email & PIN';
+        btn.innerHTML = `<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">${label}</span>`;
       };
       btn.disabled = true;
-      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Email...';
-    
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi Kredensial...';
+
+      const onAuthResult = res => {
+        restoreLoginBtn();
+        if (!res) {
+          showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda.', 'danger');
+          return;
+        }
+        if (res.success && res.data && !res.data.requirePinStep) {
+          completeStaffLoginSuccess(res.data);
+        } else {
+          errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message || 'Otorisasi gagal.');
+          errBox.style.display = 'block';
+        }
+      };
+
+      if (_pendingGoogleIdToken) {
+        gasRun
+          .withSuccessHandler(onAuthResult)
+          .withFailureHandler(err => { restoreLoginBtn(); showToast('Error', err.message, 'danger'); })
+          .staffLoginGoogle(appState.staffRole, _pendingGoogleIdToken, pin);
+      } else {
+        gasRun
+          .withSuccessHandler(onAuthResult)
+          .withFailureHandler(err => { restoreLoginBtn(); showToast('Error', err.message, 'danger'); })
+          .staffLogin(appState.staffRole, email, pin);
+      }
+    }
+
+    function openChangeOwnPinModal(showMustChangeWarning = false) {
+      const warn = document.getElementById('mustChangePinAlert');
+      if (warn) {
+        const shouldWarn = showMustChangeWarning || Boolean(appState.staff && appState.staff.mustChangePin);
+        warn.style.display = shouldWarn ? 'block' : 'none';
+      }
+      ['ownOldPin', 'ownNewPin', 'ownConfirmPin'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      openModal('modalChangeOwnPin');
+    }
+
+    function submitChangeOwnPin(e) {
+      e.preventDefault();
+      const oldPin = document.getElementById('ownOldPin').value.trim();
+      const newPin = document.getElementById('ownNewPin').value.trim();
+      const confirmPin = document.getElementById('ownConfirmPin').value.trim();
+
+      if (!/^\d{6}$/.test(newPin)) {
+        showToast('Format PIN', 'PIN baru harus terdiri dari tepat 6 digit angka.', 'warning');
+        return;
+      }
+      if (newPin !== confirmPin) {
+        showToast('Konfirmasi PIN', 'Konfirmasi PIN baru tidak sama.', 'warning');
+        return;
+      }
+
       gasRun
         .withSuccessHandler(res => {
-          restoreLoginBtn();
-          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          if (res.success) {
-            appState.staff = res.data;
-            localStorage.setItem('cbt_staff', JSON.stringify(res.data));
-            renderStaffSidebar(res.data.role);
-            syncStaffIdentityUI(res.data);
-            showView('view-staff-app');
-            navigateTo(res.data.role === 'admin' ? 'adminDashboard' : 'dosenDashboard');
-          } else {
-            errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message); errBox.style.display = 'block';
+          if (!res) { showToast('Koneksi Terputus', 'Gagal menghubungi server.', 'danger'); return; }
+          if (!res.success) { showToast('Gagal', res.message, 'danger'); return; }
+          if (appState.staff) {
+            appState.staff.mustChangePin = false;
+            localStorage.setItem('cbt_staff', JSON.stringify(appState.staff));
           }
+          closeModal('modalChangeOwnPin');
+          showToast('PIN Diperbarui', res.message, 'success');
         })
-        .withFailureHandler(err => { restoreLoginBtn(); showToast('Error', err.message, 'danger'); })
-        .staffLogin(appState.staffRole, email);
+        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+        .changeOwnStaffPin(oldPin, newPin);
     }
     
     function logoutStaff() {
       appState.staff = null;
       localStorage.removeItem('cbt_staff');
+      clearPendingGoogleToken();
+      const pinField = document.getElementById('sPin');
+      if (pinField) pinField.value = '';
       showView('view-staff-login');
     }
     
@@ -685,15 +953,15 @@
             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
               <div style="flex:1;min-width:240px;">
                 <span class="badge-pill ${st.cls}" style="margin-bottom:8px;"><span class="dot"></span>${st.label}</span>
-                <h3 style="margin:4px 0;">${u.Nama_Ujian}</h3>
-                <p style="color:var(--text-muted);font-size:13.5px;">${u.Deskripsi || ''}</p>
+                <h3 style="margin:4px 0;">${escapeHtml(u.Nama_Ujian)}</h3>
+                <p style="color:var(--text-muted);font-size:13.5px;">${escapeHtml(u.Deskripsi || '')}</p>
                 <div style="display:flex;gap:16px;font-size:12.5px;color:var(--text-muted);margin-top:6px;">
-                  <span><i class="bi bi-clock"></i> ${u.Durasi_Menit} menit</span>
-                  <span><i class="bi bi-flag"></i> Passing Score: ${u.Passing_Score}</span>
+                  <span><i class="bi bi-clock"></i> ${Number(u.Durasi_Menit) || 0} menit</span>
+                  <span><i class="bi bi-flag"></i> Passing Score: ${Number(u.Passing_Score) || 0}</span>
                 </div>
               </div>
               <div style="display:flex;align-items:center;">
-                <button class="btn-cbt ${canStart ? 'btn-cbt-primary' : 'btn-cbt-ghost'}" ${canStart ? '' : 'disabled'} onclick="prepareLaunchExam('${u.ID_Ujian}')">
+                <button class="btn-cbt ${canStart ? 'btn-cbt-primary' : 'btn-cbt-ghost'}" ${canStart ? '' : 'disabled'} onclick="prepareLaunchExam('${escapeJsStr(u.ID_Ujian)}')">
                   ${canStart ? '<i class="bi bi-play-fill"></i> Mulai Ujian' : 'Belum Tersedia'}
                 </button>
               </div>
@@ -728,6 +996,10 @@
       if (appState.autoSyncInterval) {
         clearInterval(appState.autoSyncInterval);
         appState.autoSyncInterval = null;
+      }
+      if (typeof _cloudSyncDebounceTimer !== 'undefined' && _cloudSyncDebounceTimer) {
+        clearTimeout(_cloudSyncDebounceTimer);
+        _cloudSyncDebounceTimer = null;
       }
     }
     
@@ -858,59 +1130,91 @@
             return;
           }
           appState.currentExam = res.data.ujian;
-          appState.examQuestions = res.data.soal;
+          appState.examQuestions = res.data.soal || [];
           appState.examStartTimeISO = res.data.waktuMulaiServer;
-    
-          // Pulihkan jawaban & posisi soal terakhir jika ini adalah resume setelah
-          // refresh/tab tertutup, atau mulai bersih jika ini benar-benar sesi baru.
-          const savedAnswers = localStorage.getItem(getDraftAnswersKey(idUjian));
-          appState.answers = savedAnswers ? JSON.parse(savedAnswers) : {};
+
+          // Pulihkan jawaban & status sesi dari Cloud Server + LocalStorage (mendukung pindah PC apabila sesi di-reset Pengawas)
+          const serverDraftAnswers = (res.data.draftAnswers && typeof res.data.draftAnswers === 'object') ? res.data.draftAnswers : {};
+          const serverMeta = (res.data.stateMeta && typeof res.data.stateMeta === 'object') ? res.data.stateMeta : {};
+
+          let localAnswers = {};
+          try {
+            const savedAnswers = localStorage.getItem(getDraftAnswersKey(idUjian));
+            if (savedAnswers) localAnswers = JSON.parse(savedAnswers) || {};
+          } catch (e) { localAnswers = {}; }
+          appState.answers = { ...serverDraftAnswers, ...localAnswers };
+
           const savedIndex = localStorage.getItem(getQIndexKey(idUjian));
-          appState.currentQuestionIndex = savedIndex ? Number(savedIndex) : 0;
-          
-          // Pulihkan status ragu-ragu, kuota putar audio, dan pelanggaran
-          const savedFlagged = localStorage.getItem(getFlaggedKey(idUjian));
-          appState.flaggedQuestions = savedFlagged ? JSON.parse(savedFlagged) : {};
-          const savedAudio = localStorage.getItem(getAudioKey(idUjian));
-          appState.audioPlayCounts = savedAudio ? JSON.parse(savedAudio) : {};
+          const rawIndex = savedIndex !== null ? Number(savedIndex) : Number(serverMeta.currentQuestionIndex || 0);
+          const maxIdx = Math.max(0, appState.examQuestions.length - 1);
+          appState.currentQuestionIndex = Number.isFinite(rawIndex) ? Math.min(Math.max(0, rawIndex), maxIdx) : 0;
+
+          // Pulihkan status ragu-ragu, kuota putar audio (monotonic max), dan pelanggaran (monotonic max)
+          let localFlagged = {};
+          try {
+            const savedFlagged = localStorage.getItem(getFlaggedKey(idUjian));
+            if (savedFlagged) localFlagged = JSON.parse(savedFlagged) || {};
+          } catch (e) { localFlagged = {}; }
+          appState.flaggedQuestions = Object.keys(localFlagged).length > 0
+            ? localFlagged
+            : ((serverMeta.flaggedQuestions && typeof serverMeta.flaggedQuestions === 'object') ? serverMeta.flaggedQuestions : {});
+
+          let localAudio = {};
+          try {
+            const savedAudio = localStorage.getItem(getAudioKey(idUjian));
+            if (savedAudio) localAudio = JSON.parse(savedAudio) || {};
+          } catch (e) { localAudio = {}; }
+          const mergedAudio = { ...((serverMeta.audioPlayCounts && typeof serverMeta.audioPlayCounts === 'object') ? serverMeta.audioPlayCounts : {}) };
+          Object.entries(localAudio).forEach(([k, v]) => {
+            mergedAudio[k] = Math.max(Number(mergedAudio[k]) || 0, Number(v) || 0);
+          });
+          appState.audioPlayCounts = mergedAudio;
+
           const savedCheat = localStorage.getItem(getCheatKey(idUjian));
-          appState.cheatViolations = savedCheat ? Number(savedCheat) : 0;
-          const savedLogs = localStorage.getItem(getCheatLogsKey(idUjian));
-          appState.cheatAuditLogs = savedLogs ? JSON.parse(savedLogs) : [];
-    
-          // Sisa waktu dihitung dari waktu mulai OTORITATIF milik server (bukan
-          // direset ke durasi penuh) — refresh halaman tidak akan menambah waktu.
+          const localCheat = savedCheat ? Number(savedCheat) : 0;
+          appState.cheatViolations = Math.max(Number(res.data.cheatViolations) || 0, localCheat);
+
+          try {
+            const savedLogs = localStorage.getItem(getCheatLogsKey(idUjian));
+            appState.cheatAuditLogs = savedLogs ? JSON.parse(savedLogs) : [];
+          } catch (e) { appState.cheatAuditLogs = []; }
+
+          saveDraftToLocal(idUjian);
+          localStorage.setItem(getCheatKey(idUjian), appState.cheatViolations);
+
+          // Sisa waktu dihitung dari waktu mulai OTORITATIF milik server
           const durasiMs = Number(res.data.ujian.Durasi_Menit) * 60 * 1000;
           const elapsedMs = Date.now() - new Date(res.data.waktuMulaiServer).getTime();
           appState.timerSecondsLeft = Math.max(0, Math.floor((durasiMs - elapsedMs) / 1000));
-    
-          // Tandai sesi ujian sedang aktif, supaya bisa dipulihkan otomatis kalau
-          // halaman ter-refresh atau tab sempat tertutup.
+
           localStorage.setItem('cbt_active_exam_id', idUjian);
           localStorage.setItem('cbt_active_exam_data', JSON.stringify({ ID_Ujian: idUjian }));
-    
+
           document.getElementById('examSessionTitle').textContent = res.data.ujian.Nama_Ujian;
           document.getElementById('qNavGrid').innerHTML = appState.examQuestions.map((q, i) =>
             `<div class="q-nav-btn ${appState.flaggedQuestions[q.ID_Soal] ? 'flagged' : ''}" id="qnav-${i}" onclick="jumpToQuestion(${i})">${i + 1}</div>`).join('');
           document.getElementById('totalQCount').textContent = appState.examQuestions.length;
           document.getElementById('qTotalNum').textContent = appState.examQuestions.length;
-          
-          // Terapkan ukuran font yang dipilih
+
           applyFontScale(appState.fontScale);
           startAutoSaveHeartbeat(idUjian);
-    
-          if (res.data.isResumed && Object.keys(appState.answers).length > 0) {
-            showToast('Sesi Dipulihkan', 'Progres jawaban ujian Anda sebelumnya berhasil dipulihkan.', 'success');
+
+          if (Object.keys(localAnswers).length > Object.keys(serverDraftAnswers).length) {
+            scheduleCloudSync(idUjian);
           }
-    
+
+          if (res.data.isResumed && (Object.keys(appState.answers).length > 0 || appState.currentQuestionIndex > 0)) {
+            showToast('Sesi Dipulihkan', `Progres ujian (${Object.keys(appState.answers).length} jawaban tersimpan) berhasil dipulihkan dari Cloud.`, 'success');
+          }
+
           if (appState.timerSecondsLeft <= 0) {
             showToast('Waktu Habis', 'Waktu ujian telah berakhir. Mengirim jawaban otomatis...', 'warning');
             enableExamProtection();
             doSubmitExam();
             return;
           }
-    
-          renderQuestion(appState.currentQuestionIndex);
+
+          renderQuestion(appState.currentQuestionIndex, true);
           startTimer();
           enableExamProtection();
           navigateTo('examSession');
@@ -918,7 +1222,7 @@
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
         .startExamSession(appState.participant.ID_Peserta, idUjian, (appState.participant && appState.participant.token) || '');
     }
-    
+
     function startTimer() {
       clearInterval(appState.timerInterval);
       appState.timerInterval = setInterval(() => {
@@ -933,7 +1237,7 @@
       }, 1000);
       renderTimer();
     }
-    
+
     function renderTimer() {
       const h = Math.floor(appState.timerSecondsLeft / 3600);
       const m = Math.floor((appState.timerSecondsLeft % 3600) / 60);
@@ -941,27 +1245,92 @@
       document.getElementById('timerDisplay').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
       document.getElementById('timerCard').classList.toggle('warning', appState.timerSecondsLeft < 300);
     }
-    
+
     // ════════════════════════════════════════════════════════
-    // AUTO-SAVE HEARTBEAT & KETAHANAN KONEKSI (RESILIENCE)
+    // CLOUD AUTO-SAVE & KETAHANAN KONEKSI (POSTGRESQL + LOCALSTORAGE)
     // ════════════════════════════════════════════════════════
+    let _cloudSyncDebounceTimer = null;
+    let _isCloudSyncInFlight = false;
+
+    function saveDraftToLocal(idUjian) {
+      if (!idUjian) return;
+      try {
+        localStorage.setItem(getDraftAnswersKey(idUjian), JSON.stringify(appState.answers || {}));
+        localStorage.setItem(getFlaggedKey(idUjian), JSON.stringify(appState.flaggedQuestions || {}));
+        localStorage.setItem(getAudioKey(idUjian), JSON.stringify(appState.audioPlayCounts || {}));
+        localStorage.setItem(getQIndexKey(idUjian), String(appState.currentQuestionIndex || 0));
+      } catch (e) {
+        console.warn('[AutoSave] Gagal menyimpan ke localStorage:', e);
+      }
+    }
+
+    function setAutosaveBadgeState(mode, timeLabel) {
+      const indicator = document.getElementById('autosaveIndicator');
+      if (!indicator) return;
+      if (mode === 'syncing') {
+        indicator.innerHTML = `<i class="bi bi-cloud-arrow-up" style="color:var(--primary);font-size:14px;"></i> <span>Menyinkronkan...</span>`;
+      } else if (mode === 'offline') {
+        indicator.innerHTML = `<i class="bi bi-hdd-fill" style="color:var(--accent);font-size:13.5px;"></i> <span>Tersimpan Lokal</span>`;
+      } else {
+        const t = timeLabel || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        indicator.innerHTML = `<i class="bi bi-cloud-check-fill" style="color:var(--success);font-size:14px;"></i> <span>Cloud (${t})</span>`;
+      }
+    }
+
+    function flushCloudSyncNow(idUjian) {
+      if (!appState.currentExam || appState.currentExam.ID_Ujian !== idUjian || window._isSubmittingExam) return;
+      saveDraftToLocal(idUjian);
+      if (_isCloudSyncInFlight) return;
+
+      _isCloudSyncInFlight = true;
+      const metaPayload = {
+        flaggedQuestions: appState.flaggedQuestions || {},
+        audioPlayCounts: appState.audioPlayCounts || {},
+        currentQuestionIndex: appState.currentQuestionIndex || 0
+      };
+
+      gasRun
+        .withSuccessHandler(res => {
+          _isCloudSyncInFlight = false;
+          if (res && res.success) {
+            setAutosaveBadgeState('synced');
+          } else if (res && res.data && res.data.sessionReplaced) {
+            clearInterval(appState.timerInterval);
+            clearActiveExamStorage(idUjian);
+            disableExamProtection();
+            stopAllQuestionAudio();
+            showToast('Sesi Dipindahkan', res.message || 'Sesi ujian ini telah dilanjutkan pada perangkat lain.', 'warning');
+            navigateTo('examList');
+          } else {
+            setAutosaveBadgeState('offline');
+          }
+        })
+        .withFailureHandler(() => {
+          _isCloudSyncInFlight = false;
+          setAutosaveBadgeState('offline');
+        })
+        .syncExamProgress(idUjian, appState.answers || {}, metaPayload);
+    }
+
+    function scheduleCloudSync(idUjian) {
+      const targetId = idUjian || (appState.currentExam && appState.currentExam.ID_Ujian);
+      if (!targetId || window._isSubmittingExam) return;
+      saveDraftToLocal(targetId);
+      setAutosaveBadgeState('syncing');
+      if (_cloudSyncDebounceTimer) clearTimeout(_cloudSyncDebounceTimer);
+      _cloudSyncDebounceTimer = setTimeout(() => {
+        _cloudSyncDebounceTimer = null;
+        flushCloudSyncNow(targetId);
+      }, 2400);
+    }
+
     function startAutoSaveHeartbeat(idUjian) {
       if (appState.autoSyncInterval) clearInterval(appState.autoSyncInterval);
+      setAutosaveBadgeState('synced');
       appState.autoSyncInterval = setInterval(() => {
-        if (!appState.currentExam || appState.currentExam.ID_Ujian !== idUjian) return;
-        try {
-          localStorage.setItem(getDraftAnswersKey(idUjian), JSON.stringify(appState.answers));
-          localStorage.setItem(getFlaggedKey(idUjian), JSON.stringify(appState.flaggedQuestions));
-          localStorage.setItem(getAudioKey(idUjian), JSON.stringify(appState.audioPlayCounts));
-          
-          const indicator = document.getElementById('autosaveIndicator');
-          if (indicator) {
-            indicator.innerHTML = `<i class="bi bi-cloud-check-fill" style="color:var(--success);font-size:14px;"></i> <span>Tersimpan (${new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})})</span>`;
-          }
-        } catch (e) {
-          console.warn('[AutoSave] Gagal menyimpan ke localStorage:', e);
-        }
-      }, 20000); // Sinkronisasi setiap 20 detik
+        if (!appState.currentExam || appState.currentExam.ID_Ujian !== idUjian || window._isSubmittingExam) return;
+        flushCloudSyncNow(idUjian);
+      }, 25000);
     }
 
     // ════════════════════════════════════════════════════════
@@ -992,6 +1361,7 @@
     // PROTEKSI INTEGRITAS & ANTI-CURANG (FULLSCREEN & TAB-SWITCH)
     // ════════════════════════════════════════════════════════
     let _examProtectionHandlers = null;
+    let _lastViolationAt = 0;
     window._isSubmittingExam = false;
     
     function enableExamProtection() {
@@ -1005,16 +1375,15 @@
       const blockShortcuts = e => {
         const key = (e.key || '').toLowerCase();
         const isCtrlCmd = e.ctrlKey || e.metaKey;
-        // Blokir shortcut salin, cetak, simpan, inspect, reload
         if ((isCtrlCmd && ['c', 'x', 'u', 's', 'p', 'a', 'v', 'r'].includes(key)) || key === 'f12') {
           e.preventDefault();
           showToast('Dinonaktifkan', 'Pintasan keyboard ini dinonaktifkan selama ujian berlangsung.', 'warning');
         }
       };
       
-      // Deteksi keluar dari Fullscreen
+      // Deteksi keluar dari Fullscreen (hanya bila kebijakan enforceFullscreen aktif)
       const handleFullscreenChange = () => {
-        if (!document.fullscreenElement && !window._isSubmittingExam && appState.currentExam) {
+        if (appState.enforceFullscreen !== false && !document.fullscreenElement && !window._isSubmittingExam && appState.currentExam) {
           triggerCheatViolation('Keluar dari Mode Layar Penuh (Fullscreen)');
         }
       };
@@ -1049,34 +1418,62 @@
     
     function triggerCheatViolation(reason) {
       if (!appState.currentExam || window._isSubmittingExam) return;
-      
-      // Jika toleransi diatur 0 (Nonaktif), catat di log audit saja tanpa peringatan agresif
+
+      // Cooldown 1.2 detik agar 1 insiden Alt+Tab tidak terhitung ganda (fullscreenchange + visibilitychange bersamaan)
+      const nowTs = Date.now();
+      if (nowTs - _lastViolationAt < 1200) return;
+      _lastViolationAt = nowTs;
+
+      const idUjian = appState.currentExam.ID_Ujian;
+      const timeStr = new Date().toLocaleTimeString('id-ID');
+
+      // Jika toleransi diatur 0 (Mode Audit Senyap), tetap catat ke server & log lokal tanpa modal interupsi
       if (appState.maxCheatViolations === 0) {
-        appState.cheatAuditLogs.push({ time: new Date().toLocaleTimeString('id-ID'), reason, count: 0 });
+        const silentCount = (appState.cheatViolations || 0) + 1;
+        appState.cheatViolations = silentCount;
+        appState.cheatAuditLogs.push({ time: timeStr, reason, count: silentCount });
+        localStorage.setItem(getCheatKey(idUjian), appState.cheatViolations);
+        gasRun
+          .withSuccessHandler(r => {
+            if (r && r.success && r.data && r.data.cheatViolations) {
+              appState.cheatViolations = Math.max(appState.cheatViolations, Number(r.data.cheatViolations));
+            }
+          })
+          .withFailureHandler(() => {})
+          .recordExamViolation(idUjian, reason, silentCount);
         return;
       }
-      
+
       appState.cheatViolations = (appState.cheatViolations || 0) + 1;
       const incident = {
-        time: new Date().toLocaleTimeString('id-ID'),
+        time: timeStr,
         reason: reason,
         count: appState.cheatViolations
       };
       appState.cheatAuditLogs.push(incident);
-      
-      if (appState.currentExam) {
-        localStorage.setItem(getCheatKey(appState.currentExam.ID_Ujian), appState.cheatViolations);
-        localStorage.setItem(getCheatLogsKey(appState.currentExam.ID_Ujian), JSON.stringify(appState.cheatAuditLogs));
-      }
-      
+
+      localStorage.setItem(getCheatKey(idUjian), appState.cheatViolations);
+      localStorage.setItem(getCheatLogsKey(idUjian), JSON.stringify(appState.cheatAuditLogs));
+
+      // Kirim insiden real-time ke server agar Pengawas & Admin dapat memantau langsung
+      gasRun
+        .withSuccessHandler(r => {
+          if (r && r.success && r.data && r.data.cheatViolations) {
+            appState.cheatViolations = Math.max(appState.cheatViolations, Number(r.data.cheatViolations));
+            localStorage.setItem(getCheatKey(idUjian), appState.cheatViolations);
+          }
+        })
+        .withFailureHandler(() => {})
+        .recordExamViolation(idUjian, reason, appState.cheatViolations);
+
       const badge = document.getElementById('cheatViolationCountBadge');
       if (badge) badge.textContent = `Pelanggaran ${appState.cheatViolations} dari ${appState.maxCheatViolations}`;
-      
+
       const desc = document.getElementById('cheatWarningDesc');
       if (desc) {
-        desc.innerHTML = `Sistem mendeteksi aktivitas mencurigakan: <strong>${reason}</strong> pada pukul ${incident.time}. Aktivitas ini telah dicatat dalam log audit pengawas institusi.`;
+        desc.innerHTML = `Sistem mendeteksi aktivitas mencurigakan: <strong>${escapeHtml(reason)}</strong> pada pukul ${escapeHtml(incident.time)}. Aktivitas ini telah tercatat otomatis pada log pengawas server.`;
       }
-      
+
       if (appState.cheatViolations >= appState.maxCheatViolations) {
         if (appState.cheatAction === 'warn_only') {
           openModal('modalCheatWarning');
@@ -1096,7 +1493,7 @@
 
     function dismissCheatWarningAndRestoreFullscreen() {
       closeModal('modalCheatWarning');
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      if (appState.enforceFullscreen !== false && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     }
@@ -1122,7 +1519,7 @@
       }
       
       if (appState.currentExam) {
-        localStorage.setItem(getFlaggedKey(appState.currentExam.ID_Ujian), JSON.stringify(appState.flaggedQuestions));
+        scheduleCloudSync(appState.currentExam.ID_Ujian);
       }
       
       updateFlagButton(q.ID_Soal);
@@ -1152,36 +1549,73 @@
     }
 
     // ════════════════════════════════════════════════════════
-    // AUDIO LISTENING — PLAY COUNT RESTRICTION
+    // AUDIO LISTENING — PLAY COUNT RESTRICTION & LIFECYCLE
     // ════════════════════════════════════════════════════════
-    function toggleQuestionAudio(idSoal, audioSrc) {
-      const audioEl = document.getElementById(`audio-elem-${idSoal}`);
-      const playBtn = document.getElementById(`audio-play-btn-${idSoal}`);
+    function stopAllQuestionAudio() {
+      const audios = document.querySelectorAll('#examQuestionDynamicWrap audio');
+      audios.forEach(a => {
+        try {
+          if (!a.paused) a.pause();
+        } catch (e) {}
+      });
+    }
+
+    function handleQuestionAudioTimeUpdate(idSoal, audioEl) {
+      const bar = document.getElementById(`audio-progress-bar-${idSoal}`);
+      if (bar && audioEl && audioEl.duration) {
+        bar.style.width = ((audioEl.currentTime / audioEl.duration) * 100) + '%';
+      }
+    }
+
+    function handleQuestionAudioEnded(idSoal) {
+      const playCount = appState.audioPlayCounts[idSoal] || 0;
+      const maxPlays = appState.audioMaxPlayLimit || 2;
       const icon = document.getElementById(`audio-icon-${idSoal}`);
-      const progressBar = document.getElementById(`audio-progress-bar-${idSoal}`);
+      const btn = document.getElementById(`audio-play-btn-${idSoal}`);
       const badge = document.getElementById(`audio-badge-${idSoal}`);
-      
+
+      if (playCount >= maxPlays) {
+        if (btn) btn.disabled = true;
+        if (icon) icon.className = 'bi bi-slash-circle';
+        if (badge) {
+          badge.textContent = `Batas Putar Habis (${maxPlays}/${maxPlays})`;
+          badge.classList.add('depleted');
+        }
+      } else {
+        if (icon) icon.className = 'bi bi-play-fill';
+      }
+    }
+
+    function toggleQuestionAudio(idSoal) {
+      const audioEl = document.getElementById(`audio-elem-${idSoal}`);
+      const icon = document.getElementById(`audio-icon-${idSoal}`);
+      const badge = document.getElementById(`audio-badge-${idSoal}`);
+
       if (!audioEl) return;
-      
+
       const currentPlays = appState.audioPlayCounts[idSoal] || 0;
       const maxPlays = appState.audioMaxPlayLimit || 2;
-      
+
       if (audioEl.paused) {
-        if (currentPlays >= maxPlays) {
+        const isFreshPlay = audioEl.currentTime === 0 || audioEl.ended;
+        if (isFreshPlay && currentPlays >= maxPlays) {
           showToast('Batas Putar Habis', `Audio listening ini telah mencapai batas putar maksimal (${maxPlays} kali) sesuai regulasi ujian.`, 'warning');
+          handleQuestionAudioEnded(idSoal);
           return;
         }
-        
-        // Putar audio dan tambahkan hitungan
+
         audioEl.play().then(() => {
-          appState.audioPlayCounts[idSoal] = currentPlays + 1;
-          if (appState.currentExam) {
-            localStorage.setItem(getAudioKey(appState.currentExam.ID_Ujian), JSON.stringify(appState.audioPlayCounts));
+          if (isFreshPlay) {
+            appState.audioPlayCounts[idSoal] = currentPlays + 1;
+            if (appState.currentExam) {
+              scheduleCloudSync(appState.currentExam.ID_Ujian);
+            }
           }
+          const updatedCount = appState.audioPlayCounts[idSoal] || currentPlays;
           if (icon) icon.className = 'bi bi-pause-fill';
           if (badge) {
-            badge.textContent = `Diputar: ${appState.audioPlayCounts[idSoal]} / ${maxPlays} kali`;
-            if (appState.audioPlayCounts[idSoal] >= maxPlays) badge.classList.add('depleted');
+            badge.textContent = `Diputar: ${updatedCount} / ${maxPlays} kali`;
+            if (updatedCount >= maxPlays) badge.classList.add('depleted');
           }
         }).catch(err => {
           console.warn('Gagal memutar audio:', err);
@@ -1196,7 +1630,7 @@
     const SESI_ICON = { Listening: 'bi-headphones', 'Grammar-Structure': 'bi-pencil-square', Grammar: 'bi-pencil-square', Structure: 'bi-pencil-square', Reading: 'bi-book' };
     const SESI_LABEL = { Listening: 'Section 1: Listening', 'Grammar-Structure': 'Section 2: Structure', Grammar: 'Section 2: Structure', Structure: 'Section 2: Structure', Reading: 'Section 3: Reading' };
     
-    // ── Helper: Sanitasi HTML untuk Cegah XSS ──
+    // ── Helper: Sanitasi HTML & Atribut JS Ketat (Anti-XSS) ──
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -1207,18 +1641,46 @@
         .replace(/'/g, '&#39;');
     }
 
+    function escapeJsStr(str) {
+      if (str === null || str === undefined) return '';
+      return escapeHtml(
+        String(str)
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\\'")
+          .replace(/\r?\n/g, ' ')
+      );
+    }
+
     function sanitizeRichText(html) {
       if (!html) return '';
-      if (!/<[a-z][\s\S]*>/i.test(html)) {
-        return escapeHtml(html).replace(/\n/g, '<br>');
+      const raw = String(html);
+      if (!/<[a-z][\s\S]*>/i.test(raw)) {
+        return escapeHtml(raw).replace(/\n/g, '<br>');
       }
-      return String(html)
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-        .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-        .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
-        .replace(/\son\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
-        .replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"');
+      try {
+        const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'UL', 'OL', 'LI', 'SUB', 'SUP', 'SPAN', 'BLOCKQUOTE', 'DIV']);
+        const doc = new DOMParser().parseFromString(raw, 'text/html');
+        const cleanNode = (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            return escapeHtml(node.textContent || '');
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) return '';
+          const tag = node.tagName.toUpperCase();
+          if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'SVG', 'MATH', 'FORM', 'INPUT', 'BUTTON', 'LINK', 'META'].includes(tag)) {
+            return '';
+          }
+          const childrenHtml = Array.from(node.childNodes).map(cleanNode).join('');
+          if (!allowedTags.has(tag)) return childrenHtml;
+          if (tag === 'BR') return '<br>';
+          const dirAttr = node.getAttribute('dir');
+          const safeDir = (dirAttr === 'rtl' || dirAttr === 'ltr') ? ` dir="${dirAttr}"` : '';
+          const lower = tag.toLowerCase();
+          return `<${lower}${safeDir}>${childrenHtml}</${lower}>`;
+        };
+        return Array.from(doc.body.childNodes).map(cleanNode).join('');
+      } catch (e) {
+        return escapeHtml(raw).replace(/\n/g, '<br>');
+      }
     }
 
     // Deteksi teks Arab (rentang Unicode Arabic & Arabic Supplement) agar soal
@@ -1227,15 +1689,24 @@
       return /[\u0600-\u06FF\u0750-\u077F]/.test(str || '');
     }
     
-    function renderQuestion(index) {
+    function renderQuestion(index, skipCloudSync = false) {
       const q = appState.examQuestions[index];
       if (!q) return;
+
+      // Hentikan audio soal sebelumnya sebelum berpindah nomor soal
+      stopAllQuestionAudio();
+
+      const prevIndex = appState.currentQuestionIndex;
       appState.currentQuestionIndex = index;
-      
-      // Simpan posisi soal terakhir agar bisa dipulihkan tepat jika halaman di-refresh
-      if (appState.currentExam) localStorage.setItem(getQIndexKey(appState.currentExam.ID_Ujian), index);
+
+      if (appState.currentExam) {
+        localStorage.setItem(getQIndexKey(appState.currentExam.ID_Ujian), index);
+        if (!skipCloudSync && prevIndex !== index) {
+          scheduleCloudSync(appState.currentExam.ID_Ujian);
+        }
+      }
       document.getElementById('qCurrentNum').textContent = index + 1;
-      document.getElementById('currentSectionBadge').innerHTML = `<i class="bi ${SESI_ICON[q.Sesi] || 'bi-file-text'}"></i> ${SESI_LABEL[q.Sesi] || q.Sesi}`;
+      document.getElementById('currentSectionBadge').innerHTML = `<i class="bi ${SESI_ICON[q.Sesi] || 'bi-file-text'}"></i> ${escapeHtml(SESI_LABEL[q.Sesi] || q.Sesi)}`;
       
       applyFontScale(appState.fontScale);
       updateFlagButton(q.ID_Soal);
@@ -1247,25 +1718,28 @@
       const selected = appState.answers[q.ID_Soal];
       const opts = ['A','B','C','D'];
       
-      // Audio Player HTML dengan Batasan Putar
+      // Audio Player HTML dengan Batasan Putar Real-Time
       const playCount = appState.audioPlayCounts[q.ID_Soal] || 0;
       const maxPlays = appState.audioMaxPlayLimit || 2;
       const isDepleted = playCount >= maxPlays;
+      const safeSoalAttr = escapeHtml(q.ID_Soal);
+      const safeSoalJs = escapeJsStr(q.ID_Soal);
+      const safeAudioSrc = escapeHtml(q.Link_Audio || '');
       
       const audioHtml = q.Link_Audio ? `
         <div class="audio-player-cbt">
           <div class="audio-player-row">
-            <button type="button" class="audio-play-btn" id="audio-play-btn-${q.ID_Soal}" ${isDepleted ? 'disabled' : ''} onclick="toggleQuestionAudio('${q.ID_Soal}', '${q.Link_Audio}')">
-              <i class="bi ${isDepleted ? 'bi-slash-circle' : 'bi-play-fill'}" id="audio-icon-${q.ID_Soal}"></i>
+            <button type="button" class="audio-play-btn" id="audio-play-btn-${safeSoalAttr}" ${isDepleted ? 'disabled' : ''} onclick="toggleQuestionAudio('${safeSoalJs}')">
+              <i class="bi ${isDepleted ? 'bi-slash-circle' : 'bi-play-fill'}" id="audio-icon-${safeSoalAttr}"></i>
             </button>
-            <audio id="audio-elem-${q.ID_Soal}" src="${q.Link_Audio}" style="display:none;" 
-              ontimeupdate="const bar = document.getElementById('audio-progress-bar-${q.ID_Soal}'); if (bar && this.duration) bar.style.width = ((this.currentTime / this.duration) * 100) + '%';"
-              onended="const icon = document.getElementById('audio-icon-${q.ID_Soal}'); if (icon) icon.className = 'bi bi-play-fill'; if (${playCount + 1} >= ${maxPlays}) { const btn = document.getElementById('audio-play-btn-${q.ID_Soal}'); if (btn) { btn.disabled = true; icon.className = 'bi bi-slash-circle'; } }">
+            <audio id="audio-elem-${safeSoalAttr}" src="${safeAudioSrc}" preload="metadata" style="display:none;"
+              ontimeupdate="handleQuestionAudioTimeUpdate('${safeSoalJs}', this)"
+              onended="handleQuestionAudioEnded('${safeSoalJs}')">
             </audio>
             <div style="flex:1;">
               <div class="audio-info-title">
                 <span>Listening Audio Prompt</span>
-                <span class="audio-play-badge ${isDepleted ? 'depleted' : ''}" id="audio-badge-${q.ID_Soal}">
+                <span class="audio-play-badge ${isDepleted ? 'depleted' : ''}" id="audio-badge-${safeSoalAttr}">
                   ${isDepleted ? `Batas Putar Habis (${maxPlays}/${maxPlays})` : `Diputar: ${playCount} / ${maxPlays} kali`}
                 </span>
               </div>
@@ -1275,7 +1749,7 @@
             </div>
           </div>
           <div class="audio-progress-track">
-            <div class="audio-progress-bar" id="audio-progress-bar-${q.ID_Soal}"></div>
+            <div class="audio-progress-bar" id="audio-progress-bar-${safeSoalAttr}"></div>
           </div>
         </div>` : '';
       
@@ -1284,7 +1758,7 @@
         if (!text) return '';
         const optionRtl = isArabicText(text);
         const safeText = escapeHtml(text);
-        return `<div class="option-card ${selected === letter ? 'selected' : ''}" onclick="selectAnswer('${q.ID_Soal}','${letter}')" ${optionRtl ? 'style="flex-direction:row-reverse;"' : ''}>
+        return `<div class="option-card ${selected === letter ? 'selected' : ''}" onclick="selectAnswer('${safeSoalJs}','${letter}')" ${optionRtl ? 'style="flex-direction:row-reverse;"' : ''}>
           <div class="opt-letter">${letter}</div><div ${optionRtl ? 'dir="rtl" style="text-align:right;flex:1;"' : ''}>${safeText}</div>
         </div>`;
       }).join('');
@@ -1299,7 +1773,7 @@
             <aside class="passage-split-panel">
               <div class="passage-split-header">
                 <span><i class="bi bi-book-half"></i> Reading Passage / Teks Bacaan</span>
-                <span style="font-size:11.5px;color:var(--text-muted);font-weight:normal;">Seksi ${q.Sesi}</span>
+                <span style="font-size:11.5px;color:var(--text-muted);font-weight:normal;">Seksi ${escapeHtml(q.Sesi)}</span>
               </div>
               <div class="passage-split-content" ${passageRtl ? 'dir="rtl" style="text-align:right;"' : ''}>
                 ${safePassage}
@@ -1312,7 +1786,7 @@
               </div>
               <div id="optionsWrap">${optionsHtml}</div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);">
-                <span style="font-size:12.5px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Jawaban tersimpan otomatis.</span>
+                <span style="font-size:12.5px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Jawaban tersimpan otomatis ke Cloud.</span>
                 <button class="btn-cbt btn-cbt-primary" onclick="nextQuestion()">Simpan &amp; Lanjut <i class="bi bi-arrow-right"></i></button>
               </div>
             </div>
@@ -1328,7 +1802,7 @@
             </div>
             <div id="optionsWrap">${optionsHtml}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);">
-              <span style="font-size:12.5px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Jawaban tersimpan otomatis.</span>
+              <span style="font-size:12.5px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Jawaban tersimpan otomatis ke Cloud.</span>
               <button class="btn-cbt btn-cbt-primary" onclick="nextQuestion()">Simpan &amp; Lanjut <i class="bi bi-arrow-right"></i></button>
             </div>
           </div>
@@ -1338,8 +1812,8 @@
       updateQNavGrid();
     }
     
-    // Perbaikan bug audio: memilih opsi jawaban TIDAK me-render ulang seluruh DOM,
-    // sehingga audio listening yang sedang diputar tidak terpotong seketika!
+    // Memilih opsi jawaban TIDAK me-render ulang seluruh DOM sehingga audio listening tidak terputus,
+    // sekaligus menjadwalkan auto-save ke Cloud PostgreSQL.
     function selectAnswer(idSoal, letter) {
       appState.answers[idSoal] = letter;
       
@@ -1353,7 +1827,9 @@
         }
       });
 
-      if (appState.currentExam) localStorage.setItem(getDraftAnswersKey(appState.currentExam.ID_Ujian), JSON.stringify(appState.answers));
+      if (appState.currentExam) {
+        scheduleCloudSync(appState.currentExam.ID_Ujian);
+      }
       updateQNavGrid();
     }
     
@@ -1376,6 +1852,9 @@
     function jumpToQuestion(i) { renderQuestion(i); navigateTo('examSession'); }
     
     function goToReview() {
+      stopAllQuestionAudio();
+      if (appState.currentExam) flushCloudSyncNow(appState.currentExam.ID_Ujian);
+
       const bySesi = {};
       appState.examQuestions.forEach((q, i) => {
         if (!bySesi[q.Sesi]) bySesi[q.Sesi] = [];
@@ -1391,7 +1870,7 @@
       tabsWrap.innerHTML = Object.keys(bySesi).map((sesi, idx) => {
         const total = bySesi[sesi].length;
         const answered = bySesi[sesi].filter(x => appState.answers[x.q.ID_Soal]).length;
-        return `<div class="tab-pill ${idx === 0 ? 'active' : ''}" onclick="renderReviewGrid('${sesi}', this)">${SESI_LABEL[sesi] || sesi} ${answered}/${total}</div>`;
+        return `<div class="tab-pill ${idx === 0 ? 'active' : ''}" onclick="renderReviewGrid('${escapeJsStr(sesi)}', this)">${escapeHtml(SESI_LABEL[sesi] || sesi)} ${answered}/${total}</div>`;
       }).join('');
       
       // Panel Ringkasan Status Jawaban (Terjawab, Ragu-ragu, Kosong)
@@ -1434,7 +1913,7 @@
             badgeFlag = '<span style="font-size:9px;display:block;">🚩 Ragu</span>';
           } else if (answered) {
             styleBg = 'background:var(--primary);border-color:var(--primary);color:#fff;';
-            badgeFlag = `<span style="font-size:9px;display:block;opacity:.85;">Pilih ${appState.answers[x.q.ID_Soal]}</span>`;
+            badgeFlag = `<span style="font-size:9px;display:block;opacity:.85;">Pilih ${escapeHtml(appState.answers[x.q.ID_Soal])}</span>`;
           }
           
           return `
@@ -1457,7 +1936,16 @@
     function doSubmitExam() {
       closeModal('modalConfirmSubmitExam');
       window._isSubmittingExam = true;
+      stopAllQuestionAudio();
       clearInterval(appState.timerInterval);
+      if (appState.autoSyncInterval) {
+        clearInterval(appState.autoSyncInterval);
+        appState.autoSyncInterval = null;
+      }
+      if (_cloudSyncDebounceTimer) {
+        clearTimeout(_cloudSyncDebounceTimer);
+        _cloudSyncDebounceTimer = null;
+      }
       showToast('Mengirim...', 'Menyimpan jawaban ujian Anda ke server.', 'success');
       
       // Keluar dari mode layar penuh dengan mulus
@@ -1487,21 +1975,21 @@
           }
           clearActiveExamStorage(appState.currentExam.ID_Ujian);
           disableExamProtection();
-          const d = res.data;
+          const d = res.data || {};
 
-          if (appState.releaseScore === 'held') {
+          if (d.scoreHeld || appState.releaseScore === 'held') {
             document.getElementById('finalScoreDisplay').innerHTML = `<span style="font-size:24px;color:var(--text-muted);"><i class="bi bi-shield-lock"></i> Hasil Ditahan</span>`;
             document.getElementById('passStatusBadge').innerHTML = `<span class="badge-pill badge-warning"><span class="dot"></span> MENUNGGU VERIFIKASI PENGUJI</span>`;
             document.getElementById('scoreListeningBox').textContent = '-';
             document.getElementById('scoreGrammarBox').textContent = '-';
             document.getElementById('scoreReadingBox').textContent = '-';
           } else {
-            document.getElementById('finalScoreDisplay').innerHTML = `${d.skorTotal}<span style="font-size:20px;color:var(--text-muted);"> / ${d.skalaMax}</span>`;
+            document.getElementById('finalScoreDisplay').innerHTML = `${d.skorTotal}<span style="font-size:20px;color:var(--text-muted);"> / ${d.skalaMax || 677}</span>`;
             document.getElementById('passStatusBadge').innerHTML = d.statusLulus === 'Lulus'
               ? `<span class="badge-pill badge-success"><span class="dot"></span> PASSED (LULUS)</span>`
               : `<span class="badge-pill badge-danger"><span class="dot"></span> TIDAK LULUS</span>`;
             
-            if (appState.showSectionBreakdown === false) {
+            if (d.sectionHidden || appState.showSectionBreakdown === false) {
               document.getElementById('scoreListeningBox').textContent = 'Dirahasiakan';
               document.getElementById('scoreGrammarBox').textContent = 'Dirahasiakan';
               document.getElementById('scoreReadingBox').textContent = 'Dirahasiakan';
@@ -1570,16 +2058,17 @@
     
             document.getElementById('dosenExamTableBody').innerHTML = exams.length ? exams.map(u => `
               <tr>
-                <td><strong>${u.Nama_Ujian || '(Tanpa Nama)'}</strong><div style="font-size:11.5px;color:var(--text-muted);">ID: ${u.ID_Ujian}</div></td>
-                <td>${u.jumlahSesi || 0} Sesi · ${u.jumlahSoal || 0} Soal</td>
+                <td><strong>${escapeHtml(u.Nama_Ujian || '(Tanpa Nama)')}</strong><div style="font-size:11.5px;color:var(--text-muted);">ID: ${escapeHtml(u.ID_Ujian)}</div></td>
+                <td>${Number(u.jumlahSesi) || 0} Sesi · ${Number(u.jumlahSoal) || 0} Soal</td>
                 <td>${statusBadge(u.Status)}</td>
-                <td>${u.pesertaSelesai || 0}</td>
+                <td>${Number(u.pesertaSelesai) || 0}</td>
                 <td>${formatDate(u.Tanggal_Buka)}</td>
                 <td>
-                  <button class="btn-icon-sm" title="Lihat Hasil" onclick="openExamResults('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-eye"></i></button>
-                  <button class="btn-icon-sm" title="Upload Soal" onclick="openUploadCsv('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-cloud-upload"></i></button>
-                  <button class="btn-icon-sm" title="Kelola Soal" onclick="openManageQuestions('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-list-ul"></i></button>
-                  <button class="btn-icon-sm" title="Edit" onclick="editExam('${u.ID_Ujian}')"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-icon-sm" title="Lihat Hasil" onclick="openExamResults('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-eye"></i></button>
+                  <button class="btn-icon-sm" title="Upload Soal" onclick="openUploadCsv('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-cloud-upload"></i></button>
+                  <button class="btn-icon-sm" title="Kelola Soal" onclick="openManageQuestions('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-list-ul"></i></button>
+                  <button class="btn-icon-sm" title="Edit Ujian" onclick="editExam('${escapeJsStr(u.ID_Ujian)}')"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-icon-sm" title="Hapus Paket Ujian" onclick="confirmDeleteExam('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
                 </td>
               </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-journal-plus"></i>Belum ada ujian. Buat ujian pertama Anda.</div></td></tr>`;
     
@@ -1618,10 +2107,21 @@
     function openCreateExamForm() { appState.editingExamId = null; navigateTo('createExam'); }
     function prepareCreateExamForm() {
       document.getElementById('createExamTitle').textContent = appState.editingExamId ? 'Edit Ujian' : 'Buat Ujian Baru';
-      if (!appState.editingExamId) document.getElementById('formCreateExam').reset();
-    
-      // Dropdown "Dosen Pengampu" hanya relevan & ditampilkan untuk Admin,
-      // karena Dosen hanya membuat ujian untuk dirinya sendiri.
+      if (!appState.editingExamId) {
+        document.getElementById('formCreateExam').reset();
+        const defDurasi = Number(appState.systemSettings && appState.systemSettings.durasiDefault) || 115;
+        const defPassing = Number(appState.systemSettings && appState.systemSettings.passingScoreDefault) || 500;
+        const durEl = document.getElementById('examDurasi');
+        const passEl = document.getElementById('examPassing');
+        const acakSoalEl = document.getElementById('examAcakSoal');
+        const acakJwbEl = document.getElementById('examAcakJawaban');
+        if (durEl) durEl.value = defDurasi;
+        if (passEl) passEl.value = defPassing;
+        if (acakSoalEl) acakSoalEl.checked = true;
+        if (acakJwbEl) acakJwbEl.checked = true;
+      }
+
+      // Dropdown "Dosen Pengampu" hanya relevan & ditampilkan untuk Admin
       const wrap = document.getElementById('dosenAssignWrap');
       if (appState.staff.role === 'admin') {
         wrap.style.display = '';
@@ -1629,16 +2129,15 @@
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           const select = document.getElementById('examDosenAssign');
-          const currentVal = appState.editingExamId ? select.value : 'ADMIN';
           select.innerHTML = '<option value="ADMIN">Dikelola Langsung oleh Admin (Saya Sendiri)</option>' +
-            res.data.filter(d => d.Status === 'Aktif').map(d => `<option value="${d.ID_Dosen}">${d.Nama}</option>`).join('');
+            res.data.filter(d => d.Status === 'Aktif').map(d => `<option value="${escapeHtml(d.ID_Dosen)}">${escapeHtml(d.Nama)}</option>`).join('');
           if (appState.editingExamId) select.value = window._editingExamDosenValue || 'ADMIN';
         }).getAllLecturers();
       } else {
         wrap.style.display = 'none';
       }
     }
-    
+
     function editExam(idUjian) {
       const exam = (window._dosenExamsCache || []).find(e => e.ID_Ujian === idUjian) ||
                    (window._allExamsCache || []).find(e => e.ID_Ujian === idUjian);
@@ -1652,19 +2151,24 @@
       document.getElementById('examPassing').value = exam.Passing_Score;
       document.getElementById('examBuka').value = toDatetimeLocal(exam.Tanggal_Buka);
       document.getElementById('examTutup').value = toDatetimeLocal(exam.Tanggal_Tutup);
+      const acakSoalEl = document.getElementById('examAcakSoal');
+      const acakJwbEl = document.getElementById('examAcakJawaban');
+      if (acakSoalEl) acakSoalEl.checked = exam.Acak_Soal === undefined ? true : (exam.Acak_Soal === true || exam.Acak_Soal === 'true' || exam.Acak_Soal === 1);
+      if (acakJwbEl) acakJwbEl.checked = (exam.Acak_Jawaban === true || exam.Acak_Jawaban === 'true' || exam.Acak_Jawaban === 1);
       navigateTo('createExam');
     }
     function toDatetimeLocal(iso) { if (!iso) return ''; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16); }
-    
+
     function handleCreateExam(e) { e.preventDefault(); saveExam('Aktif'); }
-    
+
     function saveExam(statusValue) {
-      // Admin bisa menugaskan dosen pengampu via dropdown, atau mengelola ujian
-      // sendiri (nilai 'ADMIN') jika dropdown tidak ditampilkan/dosen tidak dipilih.
       const dosenOwner = appState.staff.role === 'admin'
         ? document.getElementById('examDosenAssign').value
         : getExamOwnerId();
-    
+
+      const acakSoalEl = document.getElementById('examAcakSoal');
+      const acakJwbEl = document.getElementById('examAcakJawaban');
+
       const examObj = {
         ID_Ujian: appState.editingExamId || undefined,
         Nama_Ujian: document.getElementById('examNama').value.trim(),
@@ -1675,11 +2179,12 @@
         Tanggal_Buka: document.getElementById('examBuka').value,
         Tanggal_Tutup: document.getElementById('examTutup').value,
         Status: statusValue,
-        Acak_Jawaban: true,
+        Acak_Soal: acakSoalEl ? acakSoalEl.checked : true,
+        Acak_Jawaban: acakJwbEl ? acakJwbEl.checked : true,
         Kunci_Setelah_Submit: true
       };
       if (!examObj.Nama_Ujian || !examObj.Tanggal_Buka || !examObj.Tanggal_Tutup) { showToast('Peringatan', 'Lengkapi field wajib.', 'warning'); return; }
-    
+
       const fn = appState.editingExamId ? 'updateExam' : 'createExam';
       gasRun
         .withSuccessHandler(res => {
@@ -1691,6 +2196,26 @@
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
         [fn](examObj);
+    }
+
+    function confirmDeleteExam(idUjian, namaUjian) {
+      if (!idUjian) return;
+      const label = namaUjian ? `"${namaUjian}" (${idUjian})` : idUjian;
+      if (!confirm(`Hapus permanen paket ujian ${label} beserta seluruh butir soal di dalamnya?\n\nCatatan: Paket ujian yang sudah memiliki hasil nilai peserta hanya dapat dihapus oleh Administrator.`)) {
+        return;
+      }
+      gasRun
+        .withSuccessHandler(res => {
+          if (!res) { showToast('Koneksi Terputus', 'Gagal menghubungi server.', 'danger'); return; }
+          showToast(res.success ? 'Paket Ujian Dihapus' : 'Tidak Dapat Dihapus', res.message, res.success ? 'success' : 'warning');
+          if (res.success) {
+            const activeSec = document.querySelector('.content-section.active');
+            if (activeSec && activeSec.id === 'section-manageExams') loadAllExamsAdmin();
+            else loadDosenDashboard();
+          }
+        })
+        .withFailureHandler(err => showToast('Error', err.message, 'danger'))
+        .deleteExam(idUjian);
     }
     
     // ════════════════════════════════════════════════════════
@@ -1743,8 +2268,8 @@
                 <thead><tr><th>Baris</th><th>Sesi</th><th>Cuplikan Pertanyaan</th><th>Status</th></tr></thead>
                 <tbody>${results.data.slice(0,10).map((row,i) => {
                   const err = errors.find(e => e.row === i+1);
-                  return `<tr><td>#${i+1}</td><td>${row.Sesi||'-'}</td><td>${(row.Pertanyaan||'').substring(0,60)}...</td>
-                    <td>${err ? `<span class="badge-pill badge-danger"><span class="dot"></span>Error</span><div style="font-size:11px;color:var(--danger);">${err.msg}</div>` : `<span class="badge-pill badge-success"><span class="dot"></span>Valid</span>`}</td></tr>`;
+                  return `<tr><td>#${i+1}</td><td>${escapeHtml(row.Sesi||'-')}</td><td>${escapeHtml((row.Pertanyaan||'').substring(0,60))}...</td>
+                    <td>${err ? `<span class="badge-pill badge-danger"><span class="dot"></span>Error</span><div style="font-size:11px;color:var(--danger);">${escapeHtml(err.msg)}</div>` : `<span class="badge-pill badge-success"><span class="dot"></span>Valid</span>`}</td></tr>`;
                 }).join('')}</tbody>
               </table></div>
               <div style="text-align:right;margin-top:14px;">
@@ -1779,10 +2304,26 @@
       });
     }
     
+    const MAX_AUDIO_UPLOAD_BYTES = Math.floor(3.2 * 1024 * 1024);
+
+    function validateAudioFileBeforeUpload(file) {
+      if (!file) return false;
+      if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        showToast(
+          'Ukuran Audio Terlalu Besar',
+          `File "${file.name}" berukuran ${sizeMB} MB (batas payload Vercel Serverless maksimal 3.2 MB). Kompres MP3 ke bitrate 64–96 kbps atau gunakan URL audio eksternal.`,
+          'warning'
+        );
+        return false;
+      }
+      return true;
+    }
+
     // Dipakai di halaman Upload CSV — hasil link ditampilkan untuk disalin manual ke kolom Link_Audio
     function handleAudioFileSelected(event) {
       const file = event.target.files[0];
-      if (!file) return;
+      if (!validateAudioFileBeforeUpload(file)) { event.target.value = ''; return; }
       const box = document.getElementById('audioUploadResult');
       box.innerHTML = `<div class="skeleton" style="height:44px;"></div>`;
     
@@ -1796,7 +2337,7 @@
                 <i class="bi bi-check-circle-fill"></i> Audio berhasil diupload! Salin link berikut ke kolom <code>Link_Audio</code> pada baris CSV yang sesuai:
               </div>
               <div style="display:flex;gap:8px;margin-top:8px;">
-                <input type="text" class="input-cbt" value="${res.data.fileUrl}" readonly id="lastAudioUrlField">
+                <input type="text" class="input-cbt" value="${escapeHtml(res.data.fileUrl)}" readonly id="lastAudioUrlField">
                 <button type="button" class="btn-cbt btn-cbt-outline" onclick="copyCredentialField('lastAudioUrlField', this)"><i class="bi bi-clipboard"></i></button>
               </div>`;
             showToast('Berhasil', 'File audio berhasil diunggah ke penyimpanan cloud.', 'success');
@@ -1809,7 +2350,7 @@
     // Dipakai di dalam modal Edit/Tambah Soal — otomatis mengisi field Link_Audio setelah upload selesai
     function handleQfAudioSelected(event) {
       const file = event.target.files[0];
-      if (!file) return;
+      if (!validateAudioFileBeforeUpload(file)) { event.target.value = ''; return; }
       const statusEl = document.getElementById('qfAudioUploadStatus');
       statusEl.textContent = 'Mengupload audio...';
     
@@ -1849,14 +2390,14 @@
           window._manageQuestionsCache = soal;
           tbody.innerHTML = soal.length ? soal.map(s => `
             <tr>
-              <td>${s.Nomor}</td>
-              <td><span class="badge-pill badge-indigo">${s.Sesi}</span></td>
-              <td style="max-width:360px;">${(s.Pertanyaan || '').substring(0, 90)}${(s.Pertanyaan || '').length > 90 ? '...' : ''}</td>
-              <td><strong>${s.Jawaban_Benar}</strong></td>
-              <td>${s.Poin}</td>
+              <td>${Number(s.Nomor) || '-'}</td>
+              <td><span class="badge-pill badge-indigo">${escapeHtml(s.Sesi)}</span></td>
+              <td style="max-width:360px;">${escapeHtml((s.Pertanyaan || '').substring(0, 90))}${(s.Pertanyaan || '').length > 90 ? '...' : ''}</td>
+              <td><strong>${escapeHtml(s.Jawaban_Benar)}</strong></td>
+              <td>${Number(s.Poin) || 1}</td>
               <td>
-                <button class="btn-icon-sm" title="Edit" onclick="openQuestionFormModal('${s.ID_Soal}')"><i class="bi bi-pencil"></i></button>
-                <button class="btn-icon-sm" title="Hapus" onclick="deleteQuestionRow('${s.ID_Soal}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
+                <button class="btn-icon-sm" title="Edit" onclick="openQuestionFormModal('${escapeJsStr(s.ID_Soal)}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn-icon-sm" title="Hapus" onclick="deleteQuestionRow('${escapeJsStr(s.ID_Soal)}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
               </td>
             </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-file-earmark-x"></i>Belum ada soal untuk ujian ini. Upload CSV atau tambah manual.</div></td></tr>`;
         })
@@ -1935,6 +2476,7 @@
     }
     
     function deleteQuestionRow(idSoal) {
+      if (!confirm('Hapus butir soal ini dari paket ujian? Tindakan ini tidak dapat dibatalkan.')) return;
       gasRun
         .withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server.', 'danger'); return; }
@@ -1969,8 +2511,8 @@
             statCard('bi-trophy','icon-bg-coral', tinggi, 'Skor Tertinggi');
     
           document.getElementById('dosenResultsTableBody').innerHTML = hasil.length ? hasil.map(h => `
-            <tr><td>${h.Nama_Peserta}</td><td>${h.Skor_Listening}</td><td>${h.Skor_Grammar}</td><td>${h.Skor_Reading}</td>
-            <td><strong>${h.Skor_Total}</strong></td><td>${h.Status_Lulus === 'Lulus' ? '<span class="badge-pill badge-success"><span class="dot"></span>LULUS</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>TIDAK LULUS</span>'}</td></tr>
+            <tr><td>${escapeHtml(h.Nama_Peserta)}</td><td>${Number(h.Skor_Listening) || 0}</td><td>${Number(h.Skor_Grammar) || 0}</td><td>${Number(h.Skor_Reading) || 0}</td>
+            <td><strong>${Number(h.Skor_Total) || 0}</strong></td><td>${h.Status_Lulus === 'Lulus' ? '<span class="badge-pill badge-success"><span class="dot"></span>LULUS</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>TIDAK LULUS</span>'}</td></tr>
           `).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-clipboard-x"></i>Belum ada peserta yang menyelesaikan ujian ini.</div></td></tr>`;
     
           window._currentResultsCache = hasil;
@@ -2322,16 +2864,22 @@
               ? `<span style="font-weight:500;">${escapeHtml(d.Email)}</span>`
               : `<span class="badge-pill badge-warning" title="Akun lama belum memiliki email">Belum ada email</span>` +
                 (d.Username ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Username lama: ${escapeHtml(d.Username)}</div>` : '');
+            const isLockedOut = d.Locked_Until && new Date(d.Locked_Until).getTime() > Date.now();
+            const pinBadge = isLockedOut
+              ? ' <span class="badge-pill badge-danger" title="Terkunci sementara karena salah PIN"><i class="bi bi-lock-fill"></i> Terkunci</span>'
+              : d.Must_Change_Pin
+              ? ' <span class="badge-pill badge-warning" title="Masih memakai PIN awal 123456">PIN Awal</span>'
+              : '';
             const nextStatus = d.Status === 'Aktif' ? 'Nonaktif' : 'Aktif';
             const toggleIcon = d.Status === 'Aktif' ? 'bi-toggle2-on' : 'bi-toggle2-off';
             return `
             <tr>
               <td><div class="avatar-circle" style="display:inline-flex;width:28px;height:28px;font-size:11px;margin-right:8px;">${initial}</div>${safeName}</td>
               <td>${emailDisplay}</td>
-              <td>${d.Status === 'Aktif' ? '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>' : '<span class="badge-pill badge-neutral"><span class="dot"></span>Nonaktif</span>'}</td>
+              <td>${d.Status === 'Aktif' ? '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>' : '<span class="badge-pill badge-neutral"><span class="dot"></span>Nonaktif</span>'}${pinBadge}</td>
               <td>
-                <button class="btn-icon-sm" title="Edit Nama & Email" onclick="openEditLecturerModal('${d.ID_Dosen}')"><i class="bi bi-pencil-square"></i></button>
-                <button class="btn-icon-sm" title="${d.Status === 'Aktif' ? 'Nonaktifkan Akses' : 'Aktifkan Akses'}" onclick="toggleLecturer('${d.ID_Dosen}','${nextStatus}')"><i class="bi ${toggleIcon}"></i></button>
+                <button class="btn-icon-sm" title="Edit Data & Reset PIN" onclick="openEditLecturerModal('${escapeJsStr(d.ID_Dosen)}')"><i class="bi bi-pencil-square"></i></button>
+                <button class="btn-icon-sm" title="${d.Status === 'Aktif' ? 'Nonaktifkan Akses' : 'Aktifkan Akses'}" onclick="toggleLecturer('${escapeJsStr(d.ID_Dosen)}','${nextStatus}')"><i class="bi ${toggleIcon}"></i></button>
               </td>
             </tr>`;
           }).join('') : `<tr><td colspan="4"><div class="empty-state"><i class="bi bi-person-x"></i>Belum ada dosen terdaftar.</div></td></tr>`;
@@ -2344,6 +2892,13 @@
       document.getElementById('editLecturerId').value = '';
       document.getElementById('newLecturerName').value = '';
       document.getElementById('newLecturerEmail').value = '';
+      const pinEl = document.getElementById('newLecturerPin');
+      if (pinEl) {
+        pinEl.value = '';
+        pinEl.placeholder = 'Contoh: 482910 (kosongkan = PIN awal 123456)';
+      }
+      const lblPin = document.getElementById('lblLecturerPinField');
+      if (lblPin) lblPin.textContent = 'PIN Keamanan 6 Digit';
       document.getElementById('modalLecturerTitle').innerHTML = '<i class="bi bi-person-plus"></i> Tambah Akun Dosen Penguji';
       openModal('modalAddLecturer');
     }
@@ -2354,7 +2909,14 @@
       document.getElementById('editLecturerId').value = lecturer.ID_Dosen;
       document.getElementById('newLecturerName').value = lecturer.Nama || '';
       document.getElementById('newLecturerEmail').value = lecturer.Email || '';
-      document.getElementById('modalLecturerTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Email &amp; Nama Dosen';
+      const pinEl = document.getElementById('newLecturerPin');
+      if (pinEl) {
+        pinEl.value = '';
+        pinEl.placeholder = 'Kosongkan jika tidak ingin mereset PIN';
+      }
+      const lblPin = document.getElementById('lblLecturerPinField');
+      if (lblPin) lblPin.textContent = 'Reset PIN Baru 6 Digit (Opsional)';
+      document.getElementById('modalLecturerTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Akun &amp; PIN Dosen';
       openModal('modalAddLecturer');
     }
 
@@ -2362,7 +2924,9 @@
       const idEdit = document.getElementById('editLecturerId').value.trim();
       const nama = document.getElementById('newLecturerName').value.trim();
       const email = document.getElementById('newLecturerEmail').value.trim().toLowerCase();
+      const pin = (document.getElementById('newLecturerPin')?.value || '').trim();
       if (!nama || !email) { showToast('Peringatan', 'Nama dan alamat email wajib diisi.', 'warning'); return; }
+      if (pin && !/^\d{6}$/.test(pin)) { showToast('Format PIN', 'PIN keamanan harus tepat 6 digit angka.', 'warning'); return; }
 
       const handler = res => {
         if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
@@ -2376,12 +2940,12 @@
         gasRun
           .withSuccessHandler(handler)
           .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-          .updateLecturer(idEdit, nama, email);
+          .updateLecturer(idEdit, nama, email, pin);
       } else {
         gasRun
           .withSuccessHandler(handler)
           .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-          .addLecturer(nama, email, 'Aktif');
+          .addLecturer(nama, email, 'Aktif', pin);
       }
     }
 
@@ -2406,11 +2970,17 @@
             const emailDisplay = a.Email
               ? `<span style="font-weight:500;">${escapeHtml(a.Email)}</span>`
               : `<span class="badge-pill badge-warning">Belum ada email</span>`;
-            const noteBadge = isCurrent
-              ? '<span class="badge-pill badge-primary"><span class="dot"></span>Sesi Anda Saat Ini</span>'
-              : '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>';
+            const isLockedOut = a.Locked_Until && new Date(a.Locked_Until).getTime() > Date.now();
+            const pinState = isLockedOut
+              ? ' <span class="badge-pill badge-danger"><i class="bi bi-lock-fill"></i> Terkunci</span>'
+              : a.Must_Change_Pin
+              ? ' <span class="badge-pill badge-warning">PIN Awal</span>'
+              : '';
+            const noteBadge = (isCurrent
+              ? '<span class="badge-pill badge-indigo"><span class="dot"></span>Sesi Anda Saat Ini</span>'
+              : '<span class="badge-pill badge-success"><span class="dot"></span>Aktif</span>') + pinState;
             const deleteBtn = (!isCurrent && rows.length > 1)
-              ? `<button class="btn-icon-sm" style="color:var(--danger);" title="Hapus Akses Admin" onclick="deleteAdminAccount('${a.ID_Admin}')"><i class="bi bi-trash"></i></button>`
+              ? `<button class="btn-icon-sm" style="color:var(--danger);" title="Hapus Akses Admin" onclick="deleteAdminAccount('${escapeJsStr(a.ID_Admin)}')"><i class="bi bi-trash"></i></button>`
               : `<button class="btn-icon-sm" disabled title="${isCurrent ? 'Tidak dapat menghapus akun sendiri' : 'Minimal 1 admin harus tersisa'}" style="opacity:0.4;cursor:not-allowed;"><i class="bi bi-lock"></i></button>`;
             return `
             <tr>
@@ -2418,7 +2988,7 @@
               <td>${emailDisplay}</td>
               <td>${noteBadge}</td>
               <td>
-                <button class="btn-icon-sm" title="Edit Nama & Email Admin" onclick="openEditAdminModal('${a.ID_Admin}')"><i class="bi bi-pencil-square"></i></button>
+                <button class="btn-icon-sm" title="Edit Data & Reset PIN Admin" onclick="openEditAdminModal('${escapeJsStr(a.ID_Admin)}')"><i class="bi bi-pencil-square"></i></button>
                 ${deleteBtn}
               </td>
             </tr>`;
@@ -2432,7 +3002,14 @@
       document.getElementById('editAdminId').value = '';
       document.getElementById('newAdminName').value = '';
       document.getElementById('newAdminEmail').value = '';
-      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-shield-plus"></i> Tambah Email Administrator';
+      const pinEl = document.getElementById('newAdminPin');
+      if (pinEl) {
+        pinEl.value = '';
+        pinEl.placeholder = 'Contoh: 739204 (kosongkan = PIN awal 123456)';
+      }
+      const lblPin = document.getElementById('lblAdminPinField');
+      if (lblPin) lblPin.textContent = 'PIN Keamanan 6 Digit';
+      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-shield-plus"></i> Tambah Akun Administrator';
       openModal('modalAddAdmin');
     }
 
@@ -2442,7 +3019,14 @@
       document.getElementById('editAdminId').value = admin.ID_Admin;
       document.getElementById('newAdminName').value = admin.Nama || '';
       document.getElementById('newAdminEmail').value = admin.Email || '';
-      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Email Administrator';
+      const pinEl = document.getElementById('newAdminPin');
+      if (pinEl) {
+        pinEl.value = '';
+        pinEl.placeholder = 'Kosongkan jika tidak ingin mereset PIN';
+      }
+      const lblPin = document.getElementById('lblAdminPinField');
+      if (lblPin) lblPin.textContent = 'Reset PIN Baru 6 Digit (Opsional)';
+      document.getElementById('modalAdminTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Edit Akun &amp; PIN Administrator';
       openModal('modalAddAdmin');
     }
 
@@ -2450,7 +3034,9 @@
       const idEdit = document.getElementById('editAdminId').value.trim();
       const nama = document.getElementById('newAdminName').value.trim();
       const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
+      const pin = (document.getElementById('newAdminPin')?.value || '').trim();
       if (!nama || !email) { showToast('Peringatan', 'Nama dan alamat email wajib diisi.', 'warning'); return; }
+      if (pin && !/^\d{6}$/.test(pin)) { showToast('Format PIN', 'PIN keamanan harus tepat 6 digit angka.', 'warning'); return; }
 
       const handler = res => {
         if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
@@ -2460,6 +3046,7 @@
         if (idEdit && appState.staff && appState.staff.ID_Admin === idEdit) {
           appState.staff.Nama = nama;
           appState.staff.Email = email;
+          if (pin) appState.staff.mustChangePin = (pin === '123456');
           localStorage.setItem('cbt_staff', JSON.stringify(appState.staff));
           syncStaffIdentityUI(appState.staff);
         }
@@ -2470,12 +3057,12 @@
         gasRun
           .withSuccessHandler(handler)
           .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-          .updateAdmin(idEdit, nama, email);
+          .updateAdmin(idEdit, nama, email, pin);
       } else {
         gasRun
           .withSuccessHandler(handler)
           .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-          .addAdmin(nama, email);
+          .addAdmin(nama, email, pin);
       }
     }
 
@@ -2483,7 +3070,6 @@
       const admin = (window._adminsCache || []).find(a => a.ID_Admin === idAdmin);
       const label = admin ? `${admin.Nama} (${admin.Email || '-'})` : idAdmin;
       if (!confirm(`Hapus akses login Administrator untuk ${label}?`)) return;
-      const currentAdminId = appState.staff ? appState.staff.ID_Admin : null;
       gasRun
         .withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT.', 'danger'); return; }
@@ -2491,7 +3077,7 @@
           if (res.success) loadAdmins();
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
-        .deleteAdmin(idAdmin, currentAdminId);
+        .deleteAdmin(idAdmin);
     }
 
     function copyCredentialField(fieldId, btnEl) {
@@ -2896,9 +3482,9 @@
       const cardsHtml = codesData.map(c => `
         <div class="pcard">
           <div class="pcard-label">Kode Akses Peserta</div>
-          <div class="pcard-code">${c.kode}</div>
-          <div class="pcard-exam">${c.ujian}</div>
-          ${c.nama ? `<div class="pcard-nama">Untuk: ${c.nama}</div>` : ''}
+          <div class="pcard-code">${escapeHtml(c.kode)}</div>
+          <div class="pcard-exam">${escapeHtml(c.ujian)}</div>
+          ${c.nama ? `<div class="pcard-nama">Untuk: ${escapeHtml(c.nama)}</div>` : ''}
         </div>`).join('');
     
       return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cetak Kode Akses - CBT Bahasa</title>
@@ -3205,17 +3791,18 @@
             window._allExamsCache = res.data;
             document.getElementById('allExamsTableBody').innerHTML = res.data.length ? res.data.map(u => `
               <tr>
-                <td><strong>${u.Nama_Ujian || '(Tanpa Nama)'}</strong><div style="font-size:11px;color:var(--text-muted);">${u.ID_Ujian} · ${u.jumlahSesi || 0} Sesi · ${u.jumlahSoal || 0} Soal</div></td>
-                <td>${u.namaDosen || '-'}</td>
+                <td><strong>${escapeHtml(u.Nama_Ujian || '(Tanpa Nama)')}</strong><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.ID_Ujian)} · ${Number(u.jumlahSesi) || 0} Sesi · ${Number(u.jumlahSoal) || 0} Soal</div></td>
+                <td>${escapeHtml(u.namaDosen || '-')}</td>
                 <td>${formatDate(u.Tanggal_Buka)}</td>
-                <td>${u.pesertaSelesai || 0}/${u.totalPeserta || 0}</td>
+                <td>${Number(u.pesertaSelesai) || 0}/${Number(u.totalPeserta) || 0}</td>
                 <td>${statusBadge(u.Status)}</td>
                 <td>
-                  <button class="btn-icon-sm" title="Lihat Hasil" onclick="openExamResults('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-eye"></i></button>
-                  <button class="btn-icon-sm" title="Upload Soal" onclick="openUploadCsv('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-cloud-upload"></i></button>
-                  <button class="btn-icon-sm" title="Kelola Soal" onclick="openManageQuestions('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}')"><i class="bi bi-list-ul"></i></button>
-                  <button class="btn-icon-sm" title="Edit" onclick="editExam('${u.ID_Ujian}')"><i class="bi bi-pencil"></i></button>
-                  <button class="btn-icon-sm" title="Ubah Dosen Pengampu" onclick="openReassignDosenModal('${u.ID_Ujian}','${(u.Nama_Ujian||'').replace(/'/g,"")}','${u.ID_Dosen_Pembuat || 'ADMIN'}')"><i class="bi bi-person-gear"></i></button>
+                  <button class="btn-icon-sm" title="Lihat Hasil" onclick="openExamResults('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-eye"></i></button>
+                  <button class="btn-icon-sm" title="Upload Soal" onclick="openUploadCsv('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-cloud-upload"></i></button>
+                  <button class="btn-icon-sm" title="Kelola Soal" onclick="openManageQuestions('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-list-ul"></i></button>
+                  <button class="btn-icon-sm" title="Edit Ujian" onclick="editExam('${escapeJsStr(u.ID_Ujian)}')"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-icon-sm" title="Ubah Dosen Pengampu" onclick="openReassignDosenModal('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}','${escapeJsStr(u.ID_Dosen_Pembuat || 'ADMIN')}')"><i class="bi bi-person-gear"></i></button>
+                  <button class="btn-icon-sm" title="Hapus Paket Ujian" onclick="confirmDeleteExam('${escapeJsStr(u.ID_Ujian)}','${escapeJsStr(u.Nama_Ujian || '')}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
                 </td>
               </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-journal-x"></i>Belum ada ujian dibuat oleh dosen ataupun admin.</div></td></tr>`;
           } catch (renderErr) {
@@ -3279,8 +3866,8 @@
             statCard('bi-graph-up','icon-bg-indigo', avg, 'Rata-rata Skor');
     
           document.getElementById('globalReportTableBody').innerHTML = total ? res.data.map(h => `
-            <tr><td>${h.Nama_Peserta}</td><td>${h.ID_Ujian}</td><td>${h.Skor_Listening}</td><td>${h.Skor_Grammar}</td><td>${h.Skor_Reading}</td>
-            <td><strong>${h.Skor_Total}</strong></td><td>${h.Status_Lulus === 'Lulus' ? '<span class="badge-pill badge-success"><span class="dot"></span>LULUS</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>TIDAK LULUS</span>'}</td></tr>
+            <tr><td>${escapeHtml(h.Nama_Peserta)}</td><td>${escapeHtml(h.ID_Ujian)}</td><td>${Number(h.Skor_Listening) || 0}</td><td>${Number(h.Skor_Grammar) || 0}</td><td>${Number(h.Skor_Reading) || 0}</td>
+            <td><strong>${Number(h.Skor_Total) || 0}</strong></td><td>${h.Status_Lulus === 'Lulus' ? '<span class="badge-pill badge-success"><span class="dot"></span>LULUS</span>' : '<span class="badge-pill badge-danger"><span class="dot"></span>TIDAK LULUS</span>'}</td></tr>
           `).join('') : `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-clipboard-data"></i>Belum ada data hasil ujian.</div></td></tr>`;
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
@@ -3288,7 +3875,7 @@
     
       gasRun.withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-        if (res.success) document.getElementById('reportExamFilter').innerHTML = '<option value="">Semua Ujian</option>' + res.data.map(u => `<option value="${u.ID_Ujian}">${u.Nama_Ujian}</option>`).join('');
+        if (res.success) document.getElementById('reportExamFilter').innerHTML = '<option value="">Semua Ujian</option>' + res.data.map(u => `<option value="${escapeHtml(u.ID_Ujian)}">${escapeHtml(u.Nama_Ujian)}</option>`).join('');
       }).getAllExamsAdmin();
     }
     
@@ -3301,8 +3888,8 @@
           if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
           if (!res.success) return;
           document.getElementById('activityLogTableBody').innerHTML = res.data.length ? res.data.map(l => `
-            <tr><td style="white-space:nowrap;">${formatDate(l.Timestamp)}</td><td><span class="badge-pill badge-indigo">${l.Peran}</span></td>
-            <td>${l.Nama_User}</td><td>${l.Aksi}</td><td style="color:var(--text-muted);">${l.Detail || ''}</td></tr>`).join('')
+            <tr><td style="white-space:nowrap;">${formatDate(l.Timestamp)}</td><td><span class="badge-pill badge-indigo">${escapeHtml(l.Peran)}</span></td>
+            <td>${escapeHtml(l.Nama_User)}</td><td>${escapeHtml(l.Aksi)}</td><td style="color:var(--text-muted);">${escapeHtml(l.Detail || '')}</td></tr>`).join('')
             : `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-journal-x"></i>Belum ada log.</div></td></tr>`;
         })
         .withFailureHandler(err => showToast('Error', err.message, 'danger'))
@@ -3473,7 +4060,7 @@
 
     function applyLoadedSettings(settings) {
       if (!settings) return;
-      appState.systemSettings = settings;
+      appState.systemSettings = Object.assign({}, appState.systemSettings || {}, settings);
       if (settings.institutionName) {
         const brandEls = document.querySelectorAll('.app-sidebar .brand .name, [data-inst-name]');
         brandEls.forEach(el => el.textContent = settings.institutionName);
@@ -3489,8 +4076,18 @@
       if (settings.releaseScore !== undefined) appState.releaseScore = settings.releaseScore;
       if (settings.showSectionBreakdown !== undefined) appState.showSectionBreakdown = settings.showSectionBreakdown !== '0';
       if (settings.scoringMode !== undefined) appState.scoringMode = settings.scoringMode;
+
+      const originHint = document.getElementById('currentOriginHint');
+      if (originHint && window.location && window.location.origin) {
+        originHint.textContent = window.location.origin;
+      }
+
+      if (typeof initGoogleSignInButton === 'function') {
+        initGoogleSignInButton();
+      }
+
       try {
-        localStorage.setItem('cbt_system_settings', JSON.stringify(settings));
+        localStorage.setItem('cbt_system_settings', JSON.stringify(appState.systemSettings));
       } catch(e){}
     }
 
@@ -3517,6 +4114,13 @@
       setVal('settingDirectorName', data.directorName, '');
       setVal('settingDirectorNIP', data.directorNIP, '');
       setVal('settingLoginBgUrl', data.loginBgUrl, DEFAULT_LOGIN_BG_URL);
+      setVal('settingGoogleClientId', data.googleClientId, '');
+      setVal('settingGoogleAuthMode', data.googleAuthMode, 'google_plus_pin');
+
+      const originHint = document.getElementById('currentOriginHint');
+      if (originHint && window.location && window.location.origin) {
+        originHint.textContent = window.location.origin;
+      }
     }
 
     function loadSystemSettings() {
@@ -3563,7 +4167,9 @@
         certValidityDays: document.getElementById('settingCertValidityDays').value,
         directorName: document.getElementById('settingDirectorName').value.trim(),
         directorNIP: document.getElementById('settingDirectorNIP').value.trim(),
-        loginBgUrl: (document.getElementById('settingLoginBgUrl') ? document.getElementById('settingLoginBgUrl').value.trim() : '') || DEFAULT_LOGIN_BG_URL
+        loginBgUrl: (document.getElementById('settingLoginBgUrl') ? document.getElementById('settingLoginBgUrl').value.trim() : '') || DEFAULT_LOGIN_BG_URL,
+        googleClientId: document.getElementById('settingGoogleClientId') ? document.getElementById('settingGoogleClientId').value.trim() : '',
+        googleAuthMode: document.getElementById('settingGoogleAuthMode') ? document.getElementById('settingGoogleAuthMode').value : 'google_plus_pin'
       };
 
       // Terapkan langsung ke lingkungan aplikasi aktif
@@ -3710,10 +4316,9 @@
     // BANK SOAL TERPUSAT
     // ════════════════════════════════════════════════════════
     function initBankSoalPage() {
-      // isi dropdown Topik dari daftar topik yang sudah pernah dipakai
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
-        const options = '<option value="">Semua Topik</option>' + res.data.map(t => `<option value="${t}">${t}</option>`).join('');
+        const options = '<option value="">Semua Topik</option>' + res.data.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
         document.getElementById('bankFilterTopik').innerHTML = options;
       }).getBankSoalTopics();
       loadBankSoalTable();
@@ -3731,19 +4336,19 @@
       gasRun
         .withSuccessHandler(res => {
           if (!res) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);">Tidak ada respons dari server.</div></td></tr>`; return; }
-          if (!res.success) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);">${res.message}</div></td></tr>`; return; }
+          if (!res.success) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);">${escapeHtml(res.message)}</div></td></tr>`; return; }
           window._bankSoalCache = res.data;
           const levelBadge = { Mudah: 'badge-success', Sedang: 'badge-warning', Sulit: 'badge-danger' };
           tbody.innerHTML = res.data.length ? res.data.map(b => `
             <tr>
-              <td><span class="badge-pill badge-indigo">${b.Sesi}</span></td>
-              <td>${b.Topik || 'Umum'}</td>
-              <td><span class="badge-pill ${levelBadge[b.Level_Kesulitan] || 'badge-neutral'}"><span class="dot"></span>${b.Level_Kesulitan || 'Sedang'}</span></td>
-              <td style="max-width:340px;">${(b.Pertanyaan || '').substring(0, 80)}${(b.Pertanyaan || '').length > 80 ? '...' : ''}</td>
-              <td><strong>${b.Jawaban_Benar}</strong></td>
+              <td><span class="badge-pill badge-indigo">${escapeHtml(b.Sesi)}</span></td>
+              <td>${escapeHtml(b.Topik || 'Umum')}</td>
+              <td><span class="badge-pill ${levelBadge[b.Level_Kesulitan] || 'badge-neutral'}"><span class="dot"></span>${escapeHtml(b.Level_Kesulitan || 'Sedang')}</span></td>
+              <td style="max-width:340px;">${escapeHtml((b.Pertanyaan || '').substring(0, 80))}${(b.Pertanyaan || '').length > 80 ? '...' : ''}</td>
+              <td><strong>${escapeHtml(b.Jawaban_Benar)}</strong></td>
               <td>
-                <button class="btn-icon-sm" title="Edit" onclick="openBankSoalFormModal('${b.ID_Bank}')"><i class="bi bi-pencil"></i></button>
-                <button class="btn-icon-sm" title="Hapus" onclick="deleteBankSoalRow('${b.ID_Bank}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
+                <button class="btn-icon-sm" title="Edit" onclick="openBankSoalFormModal('${escapeJsStr(b.ID_Bank)}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn-icon-sm" title="Hapus" onclick="deleteBankSoalRow('${escapeJsStr(b.ID_Bank)}')"><i class="bi bi-trash" style="color:var(--danger);"></i></button>
               </td>
             </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state"><i class="bi bi-collection"></i>Belum ada soal di Bank Soal. Tambah manual atau import CSV.</div></td></tr>`;
         })
@@ -3789,7 +4394,7 @@
     
     function handleBfAudioSelected(event) {
       const file = event.target.files[0];
-      if (!file) return;
+      if (!validateAudioFileBeforeUpload(file)) { event.target.value = ''; return; }
       const statusEl = document.getElementById('bfAudioUploadStatus');
       statusEl.textContent = 'Mengupload audio...';
       fileToBase64(file).then(base64 => {
@@ -3842,6 +4447,7 @@
     }
     
     function deleteBankSoalRow(idBank) {
+      if (!confirm('Hapus butir soal ini dari Bank Soal Terpusat? Tindakan ini tidak dapat dibatalkan.')) return;
       gasRun
         .withSuccessHandler(res => {
           if (!res) { showToast('Koneksi Terputus', 'Tidak ada respons dari server.', 'danger'); return; }
@@ -3921,7 +4527,7 @@
       switchPullTab('random');
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
-        document.getElementById('prTopik').innerHTML = '<option value="">Semua Topik</option>' + res.data.map(t => `<option value="${t}">${t}</option>`).join('');
+        document.getElementById('prTopik').innerHTML = '<option value="">Semua Topik</option>' + res.data.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
       }).getBankSoalTopics();
       openModal('modalPullFromBank');
     }
@@ -3945,11 +4551,11 @@
           window._pullManualCache = res.data;
           listEl.innerHTML = res.data.length ? res.data.map(b => `
             <label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--border-color);cursor:pointer;">
-              <input type="checkbox" class="pull-manual-checkbox" value="${b.ID_Bank}" style="margin-top:3px;">
+              <input type="checkbox" class="pull-manual-checkbox" value="${escapeHtml(b.ID_Bank)}" style="margin-top:3px;">
               <div>
-                <span class="badge-pill badge-indigo" style="margin-right:6px;">${b.Sesi}</span>
-                <span style="font-size:11.5px;color:var(--text-muted);">${b.Topik || 'Umum'} · ${b.Level_Kesulitan || 'Sedang'}</span>
-                <div style="font-size:13px;margin-top:4px;">${(b.Pertanyaan || '').substring(0, 100)}</div>
+                <span class="badge-pill badge-indigo" style="margin-right:6px;">${escapeHtml(b.Sesi)}</span>
+                <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(b.Topik || 'Umum')} · ${escapeHtml(b.Level_Kesulitan || 'Sedang')}</span>
+                <div style="font-size:13px;margin-top:4px;">${escapeHtml((b.Pertanyaan || '').substring(0, 100))}</div>
               </div>
             </label>`).join('') : `<div class="empty-state">Tidak ada soal di Bank Soal untuk filter ini.</div>`;
         })
@@ -4000,7 +4606,7 @@
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
         document.getElementById('rombelExamFilter').innerHTML = '<option value="">Semua Ujian</option>' +
-          res.data.map(u => `<option value="${u.ID_Ujian}">${u.Nama_Ujian}</option>`).join('');
+          res.data.map(u => `<option value="${escapeHtml(u.ID_Ujian)}">${escapeHtml(u.Nama_Ujian)}</option>`).join('');
       }).getAllExamsAdmin();
       loadRombelComparison();
     }
@@ -4227,7 +4833,7 @@
       document.getElementById('pesertaCsvValidationResult').innerHTML = '';
       gasRun.withSuccessHandler(res => {
         if (!res || !res.success) return;
-        document.getElementById('importPesertaExamSelect').innerHTML = res.data.map(u => `<option value="${u.ID_Ujian}">${u.Nama_Ujian}</option>`).join('');
+        document.getElementById('importPesertaExamSelect').innerHTML = res.data.map(u => `<option value="${escapeHtml(u.ID_Ujian)}">${escapeHtml(u.Nama_Ujian)}</option>`).join('');
       }).getAllExamsAdmin();
       openModal('modalImportParticipants');
     }
