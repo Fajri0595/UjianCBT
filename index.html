@@ -26,286 +26,150 @@
 <!-- AUTH VIEWS -->
 <!-- ============================================================ -->
 
-<!-- W-01: Identity & Access Code Entry -->
-<div id="view-participant-entry" class="auth-split-layout">
-  <div class="auth-bg-backdrop"></div>
-  <div class="auth-bg-overlay"></div>
-  <div class="auth-bg-motion"></div>
+<!-- W-01 & W-06: Unified Centered Auth Portal -->
+<div id="view-participant-entry" class="auth-portal-layout" data-auth-tab="participant">
+  <div class="auth-bg-backdrop" aria-hidden="true"></div>
+  <div class="auth-bg-overlay" aria-hidden="true"></div>
+  <div class="auth-bg-motion" aria-hidden="true">
+    <span class="auth-orb auth-orb-1"></span>
+    <span class="auth-orb auth-orb-2"></span>
+    <span class="auth-orb auth-orb-3"></span>
+  </div>
 
-  <!-- Left Hero & Language Assessment Showcase Pane -->
-  <aside class="auth-hero-pane">
-    <div class="auth-hero-top">
-      <div class="auth-brand-bar">
-        <div class="auth-hero-logo">
-          <img src="logo-instansi.jpg" alt="Logo UIN Madura" class="inst-logo-img">
+  <!-- Top-Right Utility Controls -->
+  <header class="auth-top-controls" aria-label="Pengaturan Tampilan">
+    <button type="button" class="auth-action-pill" title="Ganti Bahasa / Switch Language" onclick="toggleLanguage()">
+      <i class="bi bi-translate" aria-hidden="true"></i>
+      <span id="langToggleLabel3">ID</span>
+    </button>
+    <button type="button" class="auth-action-pill auth-action-icon" title="Mode Gelap / Dark Mode" aria-label="Mode Gelap / Dark Mode" onclick="toggleTheme()">
+      <i class="bi bi-moon-stars" id="themeToggleIcon3" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <!-- Centered Login Stage -->
+  <main class="auth-center-stage">
+    <div class="auth-form-container">
+      <!-- Institutional Brand Header -->
+      <div class="auth-brand-header">
+        <div class="auth-brand-logo">
+          <img src="logo-instansi.jpg" alt="Logo UIN Madura" width="46" height="46" fetchpriority="high" class="inst-logo-img">
         </div>
+        <div class="auth-brand-inst" data-inst-name>Pusat Layanan Bahasa</div>
+        <h1 class="auth-portal-heading" data-i18n="portalHeading">Sistem Ujian Kemahiran Kebahasaan</h1>
       </div>
 
-      <h1 class="auth-hero-title">Ujian Kemahiran Kebahasaan Terstandar Institusi</h1>
-      <p class="auth-hero-desc">Lingkungan evaluasi akademik terpadu untuk pengujian kompetensi <em>Listening</em>, <em>Structure</em>, dan <em>Reading</em> berbasis standar CEFR &amp; skala institusional.</p>
-    </div>
-
-    <!-- 3 Language Testing Competency Pillars -->
-    <div class="auth-feature-list">
-      <div class="auth-feature-card motion-1">
-        <div class="auth-feature-icon feat-amber">
-          <i class="bi bi-headphones"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Section 1 • Listening Comprehension</h4>
-            <span class="auth-feature-tag">Audio Streaming</span>
-          </div>
-          <p>Pemutaran audio percakapan &amp; kuliah akademik berkecepatan stabil dengan kontrol sesi otomatis.</p>
-        </div>
-      </div>
-
-      <div class="auth-feature-card motion-2">
-        <div class="auth-feature-icon feat-emerald">
-          <i class="bi bi-journal-code"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Section 2 • Structure &amp; Written Expression</h4>
-            <span class="auth-feature-tag">Tata Bahasa</span>
-          </div>
-          <p>Evaluasi ketepatan struktur kalimat dan analisis ekspresi tulis akademik secara presisi.</p>
-        </div>
-      </div>
-
-      <div class="auth-feature-card motion-3">
-        <div class="auth-feature-icon feat-cyan">
-          <i class="bi bi-book-half"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Section 3 • Reading Comprehension</h4>
-            <span class="auth-feature-tag">Split-Screen</span>
-          </div>
-          <p>Antarmuka wacana layar belah (<em>split-pane</em>) ergonomis dengan penyimpanan jawaban real-time.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="auth-hero-footer">
-      <span><i class="bi bi-shield-lock-fill"></i> © 2026 <span data-inst-name>Pusat Layanan Bahasa</span> • Secure Examination Environment</span>
-    </div>
-  </aside>
-
-  <!-- Right Form Pane: Participant -->
-  <main class="auth-form-pane">
-    <div class="auth-form-wrapper">
-      <!-- Topbar Controls (Language & Theme Toggle) -->
-      <div class="auth-top-controls">
-        <button type="button" class="auth-action-pill" title="Ganti Bahasa / Switch Language" onclick="toggleLanguage()">
-          <i class="bi bi-translate"></i> <span id="langToggleLabel3">ID</span>
+      <!-- Sliding Segmented Menu Switcher -->
+      <div class="auth-tabs-slider" id="authTabsSlider" role="tablist" aria-label="Pilih Portal Akses" data-active-tab="participant">
+        <span class="auth-tab-glider" aria-hidden="true"></span>
+        <button type="button" id="authTabParticipant" role="tab" aria-selected="true" aria-controls="authPanelParticipant" class="auth-tab-item active" onclick="switchAuthTab('participant')">
+          <i class="bi bi-mortarboard-fill" aria-hidden="true"></i>
+          <span data-i18n="tabParticipant">Peserta Ujian</span>
         </button>
-        <button type="button" class="auth-action-pill" title="Mode Gelap / Dark Mode" onclick="toggleTheme()">
-          <i class="bi bi-moon-stars" id="themeToggleIcon3"></i>
+        <button type="button" id="authTabStaff" role="tab" aria-selected="false" aria-controls="authPanelStaff" class="auth-tab-item" onclick="switchAuthTab('staff')">
+          <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+          <span data-i18n="tabStaff">Dosen &amp; Staf</span>
         </button>
       </div>
 
-      <div class="auth-form-container">
-        <!-- Segmented Tab Switcher -->
-        <div class="auth-tabs-slider">
-          <button type="button" class="auth-tab-item active">
-            <i class="bi bi-mortarboard-fill"></i> <span>Peserta Ujian</span>
-          </button>
-          <button type="button" class="auth-tab-item" onclick="switchAuthTab('staff')">
-            <i class="bi bi-shield-lock"></i> <span>Dosen &amp; Staf</span>
-          </button>
-        </div>
+      <!-- Fluid Animated Panels Viewport -->
+      <div class="auth-panels-viewport" id="authPanelsViewport">
+        <!-- Panel 1: Participant Entry -->
+        <section id="authPanelParticipant" role="tabpanel" aria-labelledby="authTabParticipant" class="auth-panel is-active">
+          <div class="auth-card-header">
+            <h2 class="auth-card-title" data-i18n="entryTitle">Registrasi Sesi Ujian</h2>
+            <p class="auth-card-subtitle" data-i18n="entrySubtitle">Lengkapi identitas resmi dan masukkan kode akses dari pengawas untuk memulai sesi ujian.</p>
+          </div>
 
-        <div class="auth-card-header">
-          <div class="auth-card-step-badge"><i class="bi bi-person-vcard"></i> Portal Peserta Ujian</div>
-          <h2 class="auth-card-title" data-i18n="entryTitle">Registrasi Sesi Ujian</h2>
-          <p class="auth-card-subtitle" data-i18n="entrySubtitle">Lengkapi identitas resmi dan masukkan kode akses dari pengawas untuk memulai sesi ujian.</p>
-        </div>
-
-        <form id="formParticipantEntry" onsubmit="handleParticipantEntry(event)">
-          <div class="auth-field-group">
-            <label class="field-label" data-i18n="lblFullName">Nama Lengkap Peserta</label>
-            <div class="input-icon-wrapper">
-              <span class="input-icon-prefix"><i class="bi bi-person-fill"></i></span>
-              <input type="text" id="pNama" class="input-cbt" placeholder="Contoh: Budi Santoso" required autocomplete="name">
+          <form id="formParticipantEntry" onsubmit="handleParticipantEntry(event)">
+            <div class="auth-field-group">
+              <label class="field-label" for="pNama" data-i18n="lblFullName">Nama Lengkap Peserta</label>
+              <div class="input-icon-wrapper">
+                <span class="input-icon-prefix"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
+                <input type="text" id="pNama" class="input-cbt" placeholder="Contoh: Budi Santoso" required autocomplete="name">
+              </div>
             </div>
-          </div>
 
-          <div class="auth-field-group">
-            <label class="field-label">Email Institusi / Nomor WhatsApp</label>
-            <div class="input-icon-wrapper">
-              <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill"></i></span>
-              <input type="text" id="pKontak" class="input-cbt" placeholder="nama.peserta@kampus.ac.id / 0812..." required autocomplete="email">
+            <div class="auth-field-group">
+              <label class="field-label" for="pKontak" data-i18n="lblParticipantContact">Email Institusi / Nomor WhatsApp</label>
+              <div class="input-icon-wrapper">
+                <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill" aria-hidden="true"></i></span>
+                <input type="text" id="pKontak" class="input-cbt" placeholder="nama.peserta@kampus.ac.id / 0812..." required autocomplete="email">
+              </div>
             </div>
-          </div>
 
-          <div class="auth-field-group">
-            <label class="field-label" data-i18n="lblAccessCode">Kode Akses Ujian (Token Rombel)</label>
-            <div class="input-icon-wrapper token-input-wrapper">
-              <span class="input-icon-prefix"><i class="bi bi-key-fill"></i></span>
-              <input type="text" id="pKode" class="input-cbt token-input" placeholder="LANG-XXXXXX" required autocomplete="off" spellcheck="false">
-              <span class="token-input-badge"><i class="bi bi-Patch-check-fill"></i> Token Sesi</span>
+            <div class="auth-field-group">
+              <label class="field-label" for="pKode" data-i18n="lblAccessCode">Kode Akses Ujian (Token Rombel)</label>
+              <div class="input-icon-wrapper token-input-wrapper">
+                <span class="input-icon-prefix"><i class="bi bi-key-fill" aria-hidden="true"></i></span>
+                <input type="text" id="pKode" class="input-cbt token-input" placeholder="LANG-XXXXXX" required autocomplete="off" spellcheck="false">
+                <span class="token-input-badge"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> <span data-i18n="lblSessionToken">Token Sesi</span></span>
+              </div>
             </div>
+
+            <div id="entryError" class="field-error-modern" role="alert"></div>
+
+            <button type="submit" class="btn-cbt btn-cbt-teal btn-auth-submit">
+              <span data-i18n="btnContinue">Verifikasi &amp; Mulai Sesi Ujian</span> <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </button>
+
+            <div class="auth-card-trust">
+              <span><i class="bi bi-headset" aria-hidden="true"></i> <span data-i18n="trustHeadset">Siapkan perangkat audio/headset</span></span>
+              <span class="trust-sep" aria-hidden="true">•</span>
+              <span><i class="bi bi-cloud-check" aria-hidden="true"></i> <span data-i18n="trustAutosave">Auto-save jawaban aktif</span></span>
+            </div>
+          </form>
+        </section>
+
+        <!-- Panel 2: Staff Login -->
+        <section id="authPanelStaff" role="tabpanel" aria-labelledby="authTabStaff" class="auth-panel" aria-hidden="true">
+          <div class="auth-card-header">
+            <h2 class="auth-card-title" data-i18n="staffLoginTitle">Login Dosen &amp; Administrator</h2>
+            <p class="auth-card-subtitle" data-i18n="staffLoginSubtitle">Pilih peran Anda dan masukkan alamat email resmi yang telah terdaftar di sistem.</p>
           </div>
 
-          <div id="entryError" class="field-error-modern"></div>
-
-          <button type="submit" class="btn-cbt btn-cbt-teal btn-auth-submit">
-            <span data-i18n="btnContinue">Verifikasi &amp; Mulai Sesi Ujian</span> <i class="bi bi-arrow-right"></i>
-          </button>
-
-          <div class="auth-card-trust">
-            <span><i class="bi bi-headset"></i> Siapkan perangkat audio/headset</span>
-            <span>•</span>
-            <span><i class="bi bi-Cloud-check"></i> Auto-save jawaban aktif</span>
+          <div class="role-toggle" id="staffRoleToggle" data-role="admin" role="group" aria-label="Pilih Peran Staf">
+            <span class="role-toggle-glider" aria-hidden="true"></span>
+            <button type="button" id="btnRoleAdmin" class="active" onclick="setStaffRole('admin')">
+              <span class="role-btn-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+              <span class="role-btn-text">
+                <span data-i18n="roleAdminTitle">Administrator</span>
+                <small data-i18n="roleAdminSub">Kelola Sistem &amp; Akses</small>
+              </span>
+            </button>
+            <button type="button" id="btnRoleDosen" onclick="setStaffRole('dosen')">
+              <span class="role-btn-icon"><i class="bi bi-person-badge" aria-hidden="true"></i></span>
+              <span class="role-btn-text">
+                <span data-i18n="roleDosenTitle">Dosen Penguji</span>
+                <small data-i18n="roleDosenSub">Bank Soal &amp; Evaluasi</small>
+              </span>
+            </button>
           </div>
-        </form>
+
+          <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
+            <div class="auth-field-group">
+              <label class="field-label" for="sEmail" data-i18n="lblStaffEmail">Email Institusi / Staf Terdaftar</label>
+              <div class="input-icon-wrapper" id="staffEmailWrapper">
+                <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill" aria-hidden="true"></i></span>
+                <input type="email" id="sEmail" class="input-cbt" placeholder="admin@cbtbahasa.id" required autocomplete="email">
+              </div>
+            </div>
+
+            <div id="staffLoginError" class="field-error-modern" role="alert"></div>
+
+            <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
+              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">Masuk ke Dashboard Staf</span>
+            </button>
+          </form>
+        </section>
       </div>
     </div>
   </main>
-</div>
 
-<!-- W-06: Staff Login -->
-<div id="view-staff-login" class="auth-split-layout" style="display:none;">
-  <div class="auth-bg-backdrop"></div>
-  <div class="auth-bg-overlay"></div>
-  <div class="auth-bg-motion"></div>
-
-  <!-- Left Hero & Governance Showcase Pane -->
-  <aside class="auth-hero-pane">
-    <div class="auth-hero-top">
-      <div class="auth-brand-bar">
-        <div class="auth-hero-logo">
-          <img src="logo-instansi.jpg" alt="Logo UIN Madura" class="inst-logo-img">
-        </div>
-      </div>
-
-      <h1 class="auth-hero-title">Portal Manajemen &amp; Pengawasan Akademik CBT</h1>
-      <p class="auth-hero-desc">Pusat kendali terverifikasi bagi Dosen Penguji dan Administrator untuk mengelola bank soal multimedia, jadwal ujian rombel, serta evaluasi psikometrik butir soal.</p>
-    </div>
-
-    <!-- 3 Animated Feature Cards -->
-    <div class="auth-feature-list">
-      <div class="auth-feature-card motion-1">
-        <div class="auth-feature-icon feat-emerald">
-          <i class="bi bi-person-check-fill"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Otorisasi Email Terdaftar</h4>
-            <span class="auth-feature-tag">Zero-Password</span>
-          </div>
-          <p>Akses instan khusus email Dosen Penguji &amp; Administrator resmi yang terdaftar di whitelist institusi.</p>
-        </div>
-      </div>
-
-      <div class="auth-feature-card motion-2">
-        <div class="auth-feature-icon feat-amber">
-          <i class="bi bi-graph-up-arrow"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Analisis Butir &amp; Daya Pembeda</h4>
-            <span class="auth-feature-tag">Psikometrik</span>
-          </div>
-          <p>Kalkulasi otomatis tingkat kesukaran, indeks daya pembeda (D-Index), dan efektivitas distraktor.</p>
-        </div>
-      </div>
-
-      <div class="auth-feature-card motion-3">
-        <div class="auth-feature-icon feat-cyan">
-          <i class="bi bi-shield-shaded"></i>
-        </div>
-        <div class="auth-feature-text">
-          <div class="auth-feature-head">
-            <h4>Audit Trail &amp; Proteksi Sesi</h4>
-            <span class="auth-feature-tag">Real-Time</span>
-          </div>
-          <p>Pemantauan log aktivitas langsung, penguncian perangkat tunggal, dan rekapitulasi nilai per rombel.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="auth-hero-footer">
-      <span><i class="bi bi-shield-lock-fill"></i> © 2026 <span data-inst-name>Pusat Layanan Bahasa</span> • Secure Examination Environment</span>
-    </div>
-  </aside>
-
-  <!-- Right Form Pane: Staff -->
-  <main class="auth-form-pane">
-    <div class="auth-form-wrapper">
-      <!-- Topbar Controls (Language & Theme Toggle) -->
-      <div class="auth-top-controls">
-        <button type="button" class="auth-action-pill" title="Ganti Bahasa / Switch Language" onclick="toggleLanguage()">
-          <i class="bi bi-translate"></i> <span id="langToggleLabel4">ID</span>
-        </button>
-        <button type="button" class="auth-action-pill" title="Mode Gelap / Dark Mode" onclick="toggleTheme()">
-          <i class="bi bi-moon-stars" id="themeToggleIcon4"></i>
-        </button>
-      </div>
-
-      <div class="auth-form-container">
-        <!-- Segmented Tab Switcher -->
-        <div class="auth-tabs-slider">
-          <button type="button" class="auth-tab-item" onclick="switchAuthTab('participant')">
-            <i class="bi bi-mortarboard"></i> <span>Peserta Ujian</span>
-          </button>
-          <button type="button" class="auth-tab-item active">
-            <i class="bi bi-shield-lock-fill"></i> <span>Dosen &amp; Staf</span>
-          </button>
-        </div>
-
-        <div class="auth-card-header">
-          <div class="auth-card-step-badge"><i class="bi bi-patch-check-fill"></i> Portal Otorisasi Staf</div>
-          <h2 class="auth-card-title" data-i18n="staffLoginTitle">Login Dosen &amp; Administrator</h2>
-          <p class="auth-card-subtitle" data-i18n="staffLoginSubtitle">Pilih peran Anda dan masukkan alamat email resmi yang telah terdaftar di sistem.</p>
-        </div>
-
-        <div class="role-toggle" style="margin-bottom:20px;">
-          <button type="button" id="btnRoleAdmin" class="active" onclick="setStaffRole('admin')">
-            <i class="bi bi-shield-check"></i>
-            <div class="role-btn-text">
-              <span>Administrator</span>
-              <small>Kelola Sistem &amp; Akses</small>
-            </div>
-          </button>
-          <button type="button" id="btnRoleDosen" onclick="setStaffRole('dosen')">
-            <i class="bi bi-person-badge"></i>
-            <div class="role-btn-text">
-              <span>Dosen Penguji</span>
-              <small>Bank Soal &amp; Evaluasi</small>
-            </div>
-          </button>
-        </div>
-
-        <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
-          <div class="auth-field-group">
-            <label class="field-label" data-i18n="lblStaffEmail">Email Institusi / Staf Terdaftar</label>
-            <div class="input-icon-wrapper">
-              <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill"></i></span>
-              <input type="email" id="sEmail" class="input-cbt" placeholder="admin@cbtbahasa.id" required autocomplete="email">
-            </div>
-            <div class="auth-passwordless-note">
-              <i class="bi bi-shield-lock-fill"></i>
-              <span data-i18n="hintPasswordlessEmail">Otorisasi langsung berbasis email terdaftar — tanpa kata sandi.</span>
-            </div>
-          </div>
-
-          <div id="staffLoginError" class="field-error-modern"></div>
-
-          <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
-            <i class="bi bi-box-arrow-in-right"></i> <span data-i18n="btnStaffLogin">Masuk ke Dashboard Staf</span>
-          </button>
-
-          <div class="auth-card-trust">
-            <span><i class="bi bi-lock-fill"></i> Token Sesi HMAC 12 Jam</span>
-            <span>•</span>
-            <span><i class="bi bi-journal-check"></i> Audit Log Otomatis</span>
-          </div>
-        </form>
-      </div>
-    </div>
-  </main>
+  <!-- Precision Centered Footer -->
+  <footer class="auth-portal-footer">
+    <span><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> © 2026 <span data-inst-name>Pusat Layanan Bahasa</span> • Secure Examination Environment</span>
+  </footer>
 </div>
 
 <!-- ============================================================ -->

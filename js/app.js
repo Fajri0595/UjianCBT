@@ -39,8 +39,14 @@
     // ════════════════════════════════════════════════════════
     const I18N = {
       id: {
-        entryTitle: 'Isi Data Diri untuk Memulai', entrySubtitle: 'Lengkapi data diri dan kode akses untuk memulai sesi ujian kebahasaan.',
-        staffLoginTitle: 'Login Staf', staffLoginSubtitle: 'Portal Khusus Dosen Penguji & Administrator',
+        portalHeading: 'Sistem Ujian Kemahiran Kebahasaan',
+        tabParticipant: 'Peserta Ujian', tabStaff: 'Dosen & Staf',
+        entryTitle: 'Registrasi Sesi Ujian', entrySubtitle: 'Lengkapi identitas resmi dan masukkan kode akses dari pengawas untuk memulai sesi ujian.',
+        staffLoginTitle: 'Login Dosen & Administrator', staffLoginSubtitle: 'Pilih peran Anda dan masukkan alamat email resmi yang telah terdaftar di sistem.',
+        roleAdminTitle: 'Administrator', roleAdminSub: 'Kelola Sistem & Akses',
+        roleDosenTitle: 'Dosen Penguji', roleDosenSub: 'Bank Soal & Evaluasi',
+        lblParticipantContact: 'Email Institusi / Nomor WhatsApp', lblSessionToken: 'Token Sesi',
+        trustHeadset: 'Siapkan perangkat audio/headset', trustAutosave: 'Auto-save jawaban aktif',
         hAvailableExams: 'Ujian Tersedia', hReviewAnswers: 'Tinjau Jawaban Anda', pReviewAnswers: 'Pastikan seluruh soal terisi sebelum submit final.',
         hExamCompleted: 'Ujian Selesai!', hMyExams: 'Ujian Saya', pMyExams: 'Kelola paket ujian kebahasaan yang Anda buat.',
         hAdminDashboard: 'Dashboard Admin — Pusat Layanan Bahasa', pAdminDashboard: 'Ringkasan operasional sistem CBT secara real-time.',
@@ -51,8 +57,8 @@
         hActivityLog: 'Log Aktivitas & Audit Keamanan Sistem', pActivityLog: 'Rekam jejak kronologis seluruh aktivitas sistem.',
         hSettings: 'Pengaturan Sistem & Parameter Ujian', pSettings: 'Konfigurasi ambang kelulusan standar dan durasi default.',
         hManageQuestions: 'Kelola Soal',
-        lblFullName: 'Nama Lengkap', lblAccessCode: 'Kode Akses (Diberikan Admin)', btnContinue: 'Lanjutkan / Mulai Sesi',
-        lblStaffEmail: 'Email Terdaftar', hintPasswordlessEmail: 'Masuk langsung menggunakan email yang terdaftar di sistem tanpa kata sandi.', btnStaffLogin: 'Masuk dengan Email',
+        lblFullName: 'Nama Lengkap Peserta', lblAccessCode: 'Kode Akses Ujian (Token Rombel)', btnContinue: 'Verifikasi & Mulai Sesi Ujian',
+        lblStaffEmail: 'Email Institusi / Staf Terdaftar', btnStaffLogin: 'Masuk ke Dashboard Staf',
         lblTimeLeft: 'Sisa Waktu', lblQuestionNav: 'Navigasi Soal', btnReviewAll: 'Tinjau Semua Jawaban',
         btnSubmitFinal: 'Selesaikan & Kirim Ujian (Submit Final)', lblTotalScore: 'Total Nilai Konversi (Skor TOEFL)',
         btnBackToStart: 'Kembali ke Awal', btnCreateExam: 'Buat Ujian Baru',
@@ -63,8 +69,14 @@
         btnLogoutStaff: 'Akhiri Sesi (Logout)'
       },
       en: {
-        entryTitle: 'Enter Your Details to Start', entrySubtitle: 'Complete your details and access code to begin the language exam session.',
-        staffLoginTitle: 'Staff Login', staffLoginSubtitle: 'Portal for Lecturers & Administrators',
+        portalHeading: 'Language Proficiency CBT System',
+        tabParticipant: 'Exam Participant', tabStaff: 'Lecturers & Staff',
+        entryTitle: 'Exam Session Registration', entrySubtitle: 'Enter your official details and the session access code provided by your proctor.',
+        staffLoginTitle: 'Lecturer & Admin Sign In', staffLoginSubtitle: 'Select your role and enter your registered institutional email address.',
+        roleAdminTitle: 'Administrator', roleAdminSub: 'System & Access Control',
+        roleDosenTitle: 'Examiner Lecturer', roleDosenSub: 'Question Bank & Grading',
+        lblParticipantContact: 'Institutional Email / WhatsApp Number', lblSessionToken: 'Session Token',
+        trustHeadset: 'Prepare headset / audio device', trustAutosave: 'Real-time answer auto-save',
         hAvailableExams: 'Available Exams', hReviewAnswers: 'Review Your Answers', pReviewAnswers: 'Make sure all questions are answered before final submit.',
         hExamCompleted: 'Exam Completed!', hMyExams: 'My Exams', pMyExams: 'Manage the language exam packages you have created.',
         hAdminDashboard: 'Admin Dashboard — Language Service Center', pAdminDashboard: 'Real-time operational summary of the CBT system.',
@@ -75,8 +87,8 @@
         hActivityLog: 'Activity Log & Security Audit', pActivityLog: 'Chronological record of all system activity.',
         hSettings: 'System Settings & Exam Parameters', pSettings: 'Configure default passing score and duration standards.',
         hManageQuestions: 'Manage Questions',
-        lblFullName: 'Full Name', lblAccessCode: 'Access Code (Provided by Admin)', btnContinue: 'Continue / Start Session',
-        lblStaffEmail: 'Registered Email', hintPasswordlessEmail: 'Sign in directly using your registered staff email without a password.', btnStaffLogin: 'Sign in with Email',
+        lblFullName: 'Participant Full Name', lblAccessCode: 'Exam Access Code (Class Token)', btnContinue: 'Verify & Start Exam Session',
+        lblStaffEmail: 'Registered Institutional / Staff Email', btnStaffLogin: 'Enter Staff Dashboard',
         lblTimeLeft: 'Time Remaining', lblQuestionNav: 'Question Navigator', btnReviewAll: 'Review All Answers',
         btnSubmitFinal: 'Finish & Submit Exam (Final Submit)', lblTotalScore: 'Total Converted Score (TOEFL Score)',
         btnBackToStart: 'Return to Start', btnCreateExam: 'Create New Exam',
@@ -288,8 +300,17 @@
     }
     
     function showView(viewId) {
-      ['view-participant-entry','view-staff-login','view-participant-app','view-staff-app'].forEach(v => {
-        document.getElementById(v).style.display = (v === viewId) ? '' : 'none';
+      const isAuthView = viewId === 'view-participant-entry' || viewId === 'view-staff-login';
+      const authPortal = document.getElementById('view-participant-entry');
+      if (authPortal) {
+        authPortal.style.display = isAuthView ? '' : 'none';
+      }
+      if (isAuthView) {
+        switchAuthTab(viewId === 'view-staff-login' ? 'staff' : 'participant', { instant: true });
+      }
+      ['view-participant-app', 'view-staff-app'].forEach(v => {
+        const el = document.getElementById(v);
+        if (el) el.style.display = (v === viewId) ? '' : 'none';
       });
     }
     
@@ -310,34 +331,105 @@
     function closeModal(id) { document.getElementById(id).classList.remove('show'); }
     
     // ════════════════════════════════════════════════════════
+    // AUTH — SMOOTH FLUID TAB SWITCHING & MOTION CHOREOGRAPHY
     // ════════════════════════════════════════════════════════
-    // AUTH — DYNAMIC TAB SWITCHING & MOTION GRAPHICS
-    // ════════════════════════════════════════════════════════
-    function switchAuthTab(targetTab) {
-      const isStaff = targetTab === 'staff';
-      const currentViewId = isStaff ? 'view-participant-entry' : 'view-staff-login';
-      const targetViewId = isStaff ? 'view-staff-login' : 'view-participant-entry';
+    let _authSwitchTimer = null;
 
-      const currentView = document.getElementById(currentViewId);
-      if (currentView) {
-        const currentContainer = currentView.querySelector('.auth-form-container');
-        if (currentContainer) {
-          currentContainer.classList.add('auth-card-exit');
-        }
+    function switchAuthTab(targetTab, opts) {
+      const options = opts || {};
+      const nextTab = targetTab === 'staff' ? 'staff' : 'participant';
+      const portal = document.getElementById('view-participant-entry');
+      const slider = document.getElementById('authTabsSlider');
+      const viewport = document.getElementById('authPanelsViewport');
+      const tabParticipant = document.getElementById('authTabParticipant');
+      const tabStaff = document.getElementById('authTabStaff');
+      const panelParticipant = document.getElementById('authPanelParticipant');
+      const panelStaff = document.getElementById('authPanelStaff');
+
+      if (!portal || !slider || !viewport || !panelParticipant || !panelStaff) return;
+
+      const currentTab = slider.getAttribute('data-active-tab') || 'participant';
+      if (!options.instant && currentTab === nextTab && !_authSwitchTimer) return;
+
+      const isStaff = nextTab === 'staff';
+      const incomingPanel = isStaff ? panelStaff : panelParticipant;
+      const outgoingPanel = isStaff ? panelParticipant : panelStaff;
+
+      // Update glider & tab ARIA states immediately so indicator glides at 60fps
+      portal.setAttribute('data-auth-tab', nextTab);
+      slider.setAttribute('data-active-tab', nextTab);
+      if (tabParticipant) {
+        tabParticipant.classList.toggle('active', !isStaff);
+        tabParticipant.setAttribute('aria-selected', String(!isStaff));
+      }
+      if (tabStaff) {
+        tabStaff.classList.toggle('active', isStaff);
+        tabStaff.setAttribute('aria-selected', String(isStaff));
       }
 
-      setTimeout(() => {
-        showView(targetViewId);
-        const targetView = document.getElementById(targetViewId);
-        if (targetView) {
-          const newContainer = targetView.querySelector('.auth-form-container');
-          if (newContainer) {
-            newContainer.classList.remove('auth-card-exit');
-            newContainer.classList.add('auth-card-enter');
-            setTimeout(() => newContainer.classList.remove('auth-card-enter'), 400);
-          }
+      const resetPanelClasses = (el) => {
+        el.classList.remove(
+          'is-entering', 'is-exiting',
+          'is-entering-from-right', 'is-entering-from-left',
+          'is-exiting-to-left', 'is-exiting-to-right'
+        );
+      };
+
+      const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (options.instant || prefersReduced || currentTab === nextTab) {
+        if (_authSwitchTimer) {
+          clearTimeout(_authSwitchTimer);
+          _authSwitchTimer = null;
         }
-      }, 160);
+        viewport.classList.remove('is-animating');
+        viewport.style.height = '';
+        resetPanelClasses(panelParticipant);
+        resetPanelClasses(panelStaff);
+        outgoingPanel.classList.remove('is-active');
+        outgoingPanel.setAttribute('aria-hidden', 'true');
+        incomingPanel.classList.add('is-active');
+        incomingPanel.removeAttribute('aria-hidden');
+        return;
+      }
+
+      // Cancel any in-flight transition cleanly before starting the new glide
+      if (_authSwitchTimer) {
+        clearTimeout(_authSwitchTimer);
+        _authSwitchTimer = null;
+      }
+
+      const startHeight = viewport.offsetHeight;
+      const cs = window.getComputedStyle(viewport);
+      const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+
+      resetPanelClasses(panelParticipant);
+      resetPanelClasses(panelStaff);
+
+      viewport.style.height = startHeight + 'px';
+      viewport.classList.add('is-animating');
+
+      outgoingPanel.classList.remove('is-active');
+      outgoingPanel.setAttribute('aria-hidden', 'true');
+      outgoingPanel.classList.add('is-exiting', isStaff ? 'is-exiting-to-left' : 'is-exiting-to-right');
+
+      incomingPanel.removeAttribute('aria-hidden');
+      incomingPanel.classList.add('is-active', 'is-entering', isStaff ? 'is-entering-from-right' : 'is-entering-from-left');
+
+      const targetHeight = incomingPanel.offsetHeight + padY;
+      // Force layout read so browser interpolates height smoothly
+      void viewport.offsetHeight;
+      requestAnimationFrame(() => {
+        viewport.style.height = targetHeight + 'px';
+      });
+
+      _authSwitchTimer = setTimeout(() => {
+        resetPanelClasses(outgoingPanel);
+        resetPanelClasses(incomingPanel);
+        incomingPanel.classList.add('is-active');
+        viewport.classList.remove('is-animating');
+        viewport.style.height = '';
+        _authSwitchTimer = null;
+      }, 390);
     }
 
     function togglePasswordVisibility(inputId, btn) {
@@ -362,7 +454,13 @@
       errBox.style.display = 'none';
     
       const btn = e.target.querySelector('button[type="submit"]');
-      btn.disabled = true; btn.innerHTML = 'Memverifikasi...';
+      const restoreParticipantBtn = () => {
+        btn.disabled = false;
+        const lang = typeof getCurrentLang === 'function' ? getCurrentLang() : 'id';
+        const label = (I18N[lang] && I18N[lang].btnContinue) || 'Verifikasi & Mulai Sesi Ujian';
+        btn.innerHTML = `<span data-i18n="btnContinue">${label}</span> <i class="bi bi-arrow-right" aria-hidden="true"></i>`;
+      };
+      btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memverifikasi...';
 
       const saved = localStorage.getItem('cbt_participant');
       let existingToken = '';
@@ -371,8 +469,8 @@
     
       gasRun
         .withSuccessHandler(res => {
-          if (!res) { showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
-          btn.disabled = false; btn.innerHTML = 'Continue / Mulai Sesi <i class="bi bi-arrow-right"></i>';
+          if (!res) { restoreParticipantBtn(); showToast('Koneksi Terputus', 'Gagal terhubung ke Server CBT. Periksa koneksi internet Anda atau hubungi Administrator sistem.', 'danger'); return; }
+          restoreParticipantBtn();
           if (res.success) {
             appState.participant = res.data;
             localStorage.setItem('cbt_participant', JSON.stringify(res.data));
@@ -384,7 +482,7 @@
             errBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> ' + escapeHtml(res.message); errBox.style.display = 'block';
           }
         })
-        .withFailureHandler(err => { btn.disabled = false; btn.innerHTML = 'Continue / Mulai Sesi'; showToast('Error', err.message, 'danger'); })
+        .withFailureHandler(err => { restoreParticipantBtn(); showToast('Error', err.message, 'danger'); })
         .verifyParticipantAccess(nama, kontak, kode, deviceInfo, existingToken);
     }
     
@@ -400,12 +498,22 @@
     // AUTH — STAFF
     // ════════════════════════════════════════════════════════
     function setStaffRole(role) {
-      appState.staffRole = role;
-      document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'admin');
-      document.getElementById('btnRoleDosen').classList.toggle('active', role === 'dosen');
+      const nextRole = role === 'dosen' ? 'dosen' : 'admin';
+      appState.staffRole = nextRole;
+      const roleGroup = document.getElementById('staffRoleToggle');
+      if (roleGroup) roleGroup.setAttribute('data-role', nextRole);
+      document.getElementById('btnRoleAdmin').classList.toggle('active', nextRole === 'admin');
+      document.getElementById('btnRoleDosen').classList.toggle('active', nextRole === 'dosen');
       const emailInput = document.getElementById('sEmail');
       if (emailInput) {
-        emailInput.placeholder = role === 'admin' ? 'admin@cbtbahasa.id' : 'dosen.aris@cbtbahasa.id';
+        emailInput.placeholder = nextRole === 'admin' ? 'admin@cbtbahasa.id' : 'dosen.aris@cbtbahasa.id';
+      }
+      const wrapper = document.getElementById('staffEmailWrapper');
+      if (wrapper) {
+        wrapper.classList.remove('role-switch-pulse');
+        void wrapper.offsetWidth;
+        wrapper.classList.add('role-switch-pulse');
+        setTimeout(() => wrapper.classList.remove('role-switch-pulse'), 280);
       }
       const errBox = document.getElementById('staffLoginError');
       if (errBox) errBox.style.display = 'none';
