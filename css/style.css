@@ -1509,6 +1509,93 @@
   color: var(--danger);
 }
 
+/* 2-Choice Staff Login Method Tabs (Google OAuth OR Email + PIN) */
+.staff-method-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.055);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  isolation: isolate;
+}
+
+[data-theme="dark"] .staff-method-tabs {
+  background: rgba(2, 6, 23, 0.45);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.staff-method-glider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 6px);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.28s var(--auth-ease-spring), background-color 0.2s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .staff-method-glider {
+  background: rgba(20, 184, 166, 0.20);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+
+.staff-method-tabs[data-method="pin"] .staff-method-glider {
+  transform: translate3d(calc(100% + 4px), 0, 0);
+}
+
+.staff-method-btn {
+  position: relative;
+  z-index: 1;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.staff-method-btn.active {
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .staff-method-btn.active {
+  color: #5EEAD4;
+}
+
+.staff-method-pane {
+  animation: fadeInMethod 0.22s ease;
+}
+
+@keyframes fadeInMethod {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.staff-method-note {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* Google Verified Chip (2-Factor Google + PIN State) */
 .google-verified-chip {
   display: flex;

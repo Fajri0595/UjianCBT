@@ -148,60 +148,33 @@
             </button>
           </div>
 
-          <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
-            <!-- Kartu Akun Staf Tersimpan (Terdeteksi Otomatis dari Login Sebelumnya) -->
-            <div id="rememberedStaffChip" class="remembered-staff-chip" style="display:none;">
-              <div class="rsc-main">
-                <div class="rsc-avatar" id="rememberedStaffAvatar">A</div>
-                <div class="rsc-meta">
-                  <div class="rsc-title"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Akun Tersimpan Terdeteksi</div>
-                  <div class="rsc-email" id="rememberedStaffEmail">-</div>
-                </div>
-              </div>
-              <button type="button" class="rsc-switch-btn" onclick="forgetRememberedStaffAccount()" title="Gunakan akun email lain">Ganti Akun</button>
-            </div>
-
-            <!-- Chip Status Verifikasi Google OAuth (Tampil saat Langkah 1 Google Selesai) -->
-            <div id="googleVerifiedChip" class="google-verified-chip" style="display:none;">
-              <div class="gvc-info">
-                <i class="bi bi-patch-check-fill" aria-hidden="true"></i>
-                <span id="googleVerifiedEmailText">Akun Google Terverifikasi</span>
-              </div>
-              <button type="button" class="gvc-reset-btn" onclick="clearPendingGoogleToken()">Ganti</button>
-            </div>
-
-            <div class="auth-field-group" id="staffEmailGroup">
-              <label class="field-label" for="sEmail" data-i18n="lblStaffEmail">Email Institusi / Staf Terdaftar</label>
-              <div class="input-icon-wrapper" id="staffEmailWrapper">
-                <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill" aria-hidden="true"></i></span>
-                <input type="email" id="sEmail" class="input-cbt" placeholder="nama.anda@institusi.ac.id" required autocomplete="email">
+          <!-- Kartu Akun Staf Tersimpan (Terdeteksi Otomatis dari Login Sebelumnya) -->
+          <div id="rememberedStaffChip" class="remembered-staff-chip" style="display:none;">
+            <div class="rsc-main">
+              <div class="rsc-avatar" id="rememberedStaffAvatar">A</div>
+              <div class="rsc-meta">
+                <div class="rsc-title"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Akun Tersimpan Terdeteksi</div>
+                <div class="rsc-email" id="rememberedStaffEmail">-</div>
               </div>
             </div>
+            <button type="button" class="rsc-switch-btn" onclick="forgetRememberedStaffAccount()" title="Gunakan akun email lain">Ganti Akun</button>
+          </div>
 
-            <div class="auth-field-group">
-              <label class="field-label" for="sPin" id="lblStaffPinDynamic" data-i18n="lblStaffPin">PIN Keamanan (6 Digit)</label>
-              <div class="input-icon-wrapper pin-input-wrapper">
-                <span class="input-icon-prefix"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
-                <input type="password" id="sPin" class="input-cbt pin-cbt-input" placeholder="••••••" inputmode="numeric" maxlength="6" required autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)">
-                <button type="button" class="input-suffix-btn" title="Tampilkan / Sembunyikan PIN" aria-label="Tampilkan atau sembunyikan PIN" onclick="togglePasswordVisibility('sPin', this)">
-                  <i class="bi bi-eye" aria-hidden="true"></i>
-                </button>
-              </div>
-              <div id="staffPinHint" style="font-size:11.5px;color:var(--text-muted);margin-top:5px;">
-                <i class="bi bi-info-circle" aria-hidden="true"></i> Pilih salah satu: masuk dengan <strong>Email + PIN</strong> (PIN awal <code>123456</code>), atau langsung klik <strong>Masuk dengan Akun Google</strong>.
-              </div>
-            </div>
-
-            <div id="staffLoginError" class="field-error-modern" role="alert"></div>
-
-            <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
-              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">Masuk dengan Email &amp; PIN</span>
+          <!-- Pilihan Metode Login (Pilih Salah Satu: Google OAuth ATAU Email & PIN) -->
+          <div class="staff-method-tabs" id="staffMethodTabs" data-method="google" role="tablist" aria-label="Pilih Metode Login Staf">
+            <span class="staff-method-glider" aria-hidden="true"></span>
+            <button type="button" id="btnMethodGoogle" role="tab" aria-selected="true" class="staff-method-btn active" onclick="setStaffLoginMethod('google')">
+              <i class="bi bi-google" aria-hidden="true"></i>
+              <span>Akun Google</span>
             </button>
+            <button type="button" id="btnMethodPin" role="tab" aria-selected="false" class="staff-method-btn" onclick="setStaffLoginMethod('pin')">
+              <i class="bi bi-key-fill" aria-hidden="true"></i>
+              <span>Email &amp; PIN</span>
+            </button>
+          </div>
 
-            <div class="auth-oauth-divider">
-              <span data-i18n="orGoogleAuth">atau masuk menggunakan Google</span>
-            </div>
-
+          <!-- Metode 1: Login Langsung dengan Google OAuth -->
+          <div id="staffMethodGooglePane" class="staff-method-pane is-active">
             <div class="google-signin-wrap" id="googleSignInWrap">
               <div id="googleSignInBtnMount" class="google-gsi-mount"></div>
               <button type="button" id="googleFallbackBtn" class="btn-google-oauth" onclick="handleGoogleFallbackClick()">
@@ -214,7 +187,43 @@
                 <span id="googleFallbackBtnLabel" data-i18n="btnGoogleSignIn">Masuk dengan Akun Google</span>
               </button>
             </div>
-          </form>
+            <div id="staffGoogleHint" class="staff-method-note">
+              <i class="bi bi-shield-check" aria-hidden="true"></i> Masuk langsung menggunakan akun Google terdaftar tanpa perlu PIN.
+            </div>
+          </div>
+
+          <!-- Metode 2: Login dengan Email & PIN 6 Digit -->
+          <div id="staffMethodPinPane" class="staff-method-pane" style="display:none;">
+            <form id="formStaffLogin" onsubmit="handleStaffLogin(event)">
+              <div class="auth-field-group" id="staffEmailGroup">
+                <label class="field-label" for="sEmail" data-i18n="lblStaffEmail">Email Institusi / Staf Terdaftar</label>
+                <div class="input-icon-wrapper" id="staffEmailWrapper">
+                  <span class="input-icon-prefix"><i class="bi bi-envelope-at-fill" aria-hidden="true"></i></span>
+                  <input type="email" id="sEmail" class="input-cbt" placeholder="nama.anda@institusi.ac.id" required autocomplete="email">
+                </div>
+              </div>
+
+              <div class="auth-field-group">
+                <label class="field-label" for="sPin" id="lblStaffPinDynamic" data-i18n="lblStaffPin">PIN Keamanan (6 Digit)</label>
+                <div class="input-icon-wrapper pin-input-wrapper">
+                  <span class="input-icon-prefix"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
+                  <input type="password" id="sPin" class="input-cbt pin-cbt-input" placeholder="••••••" inputmode="numeric" maxlength="6" required autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)">
+                  <button type="button" class="input-suffix-btn" title="Tampilkan / Sembunyikan PIN" aria-label="Tampilkan atau sembunyikan PIN" onclick="togglePasswordVisibility('sPin', this)">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div id="staffPinHint" class="staff-method-note" style="text-align:left;margin-top:6px;">
+                  <i class="bi bi-info-circle" aria-hidden="true"></i> Masuk langsung dengan Email terdaftar &amp; PIN 6 digit (PIN awal: <code>123456</code>).
+                </div>
+              </div>
+
+              <button type="submit" id="btnStaffLoginSubmit" class="btn-cbt btn-cbt-teal btn-auth-submit">
+                <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span data-i18n="btnStaffLogin">Masuk dengan Email &amp; PIN</span>
+              </button>
+            </form>
+          </div>
+
+          <div id="staffLoginError" class="field-error-modern" role="alert" style="margin-top:10px;"></div>
         </section>
       </div>
     </div>
