@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // CBT BAHASA â€” app.js (Single Page Application Client)
 // Arsitektur: Frontend Modern SPA + REST API Backend (Node.js & PostgreSQL)
 // ============================================================
